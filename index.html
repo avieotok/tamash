@@ -385,6 +385,17 @@
   .date-display-field:hover { border-bottom-color: var(--red); }
   .cal-btn { font-size: 13px; color: var(--light); pointer-events: none; }
 
+  /* Time field (clock scale — native time picker with styled display) */
+  .time-field-wrap { position: relative; }
+  .time-field-wrap input[type="time"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; z-index: 2; border: none; background: none; }
+  .time-display-field {
+    font-size: 12px; font-weight: 500; border: none; border-bottom: 1.5px solid var(--border);
+    padding: 2px 0; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 4px;
+    cursor: pointer; color: var(--dark); transition: border-color 0.2s;
+  }
+  .time-display-field:hover { border-bottom-color: var(--red); }
+  .clock-btn { font-size: 12px; color: var(--light); pointer-events: none; }
+
   /* Work type toggle */
   .work-type-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 3px; overflow: hidden; width: fit-content; }
   .work-type-toggle button {
@@ -1113,7 +1124,15 @@
     <div class="footer-row">
       <div class="footer-field"><label>שם הנהג</label><input type="text" id="driverName"></div>
       <div class="footer-field"><label>מס׳ רכב</label><input type="text" id="vehicleNum" style="width:80px;"></div>
-      <div class="footer-field"><label>שעה</label><input type="text" id="depTime" style="width:55px;" placeholder="00:00"></div>
+      <div class="footer-field" style="min-width:105px;"><label>שעה</label>
+        <div class="time-field-wrap" style="flex:1;display:flex;">
+          <input type="time" id="depTime" onchange="syncDepTime(this.value)">
+          <div class="time-display-field" style="flex:1;">
+            <span id="depTimeDisplayText">—</span>
+            <span class="clock-btn">🕐</span>
+          </div>
+        </div>
+      </div>
       <div class="footer-field"><label>חתימה</label><div class="sig-btn-wrap" onclick="openSignPad('sig0')"><canvas class="sig-preview" id="sig0-preview"></canvas><span class="sig-placeholder" id="sig0-ph">לחץ לחתימה</span></div></div>
     </div>
     <div class="footer-row">
@@ -1126,7 +1145,15 @@
           </div>
         </div>
       </div>
-      <div class="footer-field"><label>שעה</label><input type="text" style="width:55px;" placeholder="00:00"></div>
+      <div class="footer-field" style="min-width:105px;"><label>שעה</label>
+        <div class="time-field-wrap" style="flex:1;display:flex;">
+          <input type="time" id="receiptTime" onchange="syncReceiptTime(this.value)">
+          <div class="time-display-field" style="flex:1;">
+            <span id="receiptTimeDisplayText">—</span>
+            <span class="clock-btn">🕐</span>
+          </div>
+        </div>
+      </div>
       <div class="footer-field"><label>חתימה</label><div class="sig-btn-wrap" onclick="openSignPad('sig1')"><canvas class="sig-preview" id="sig1-preview"></canvas><span class="sig-placeholder" id="sig1-ph">לחץ לחתימה</span></div></div>
     </div>
     <div class="price-row">
@@ -1635,6 +1662,7 @@ function serializeDraft() {
     projectNum: selectedProject ? selectedProject.num : val('projectSearchInput'),
     projectDesc: selectedProject ? selectedProject.desc : '',
     total: val('totalField'), driver: val('driverName'), vehicle: val('vehicleNum'), depTime: val('depTime'),
+    receiptTime: val('receiptTime'),
     items: items,
     sig0: sigData.sig0 || null, sig1: sigData.sig1 || null, sig2: sigData.sig2 || null,
   };
@@ -1689,7 +1717,8 @@ function applyRemoteDraft(d) {
     setValSafe('totalField', d.total);
     setValSafe('driverName', d.driver);
     setValSafe('vehicleNum', d.vehicle);
-    setValSafe('depTime', d.depTime);
+    setValSafe('depTime', d.depTime); syncDepTime(d.depTime || '');
+    setValSafe('receiptTime', d.receiptTime); syncReceiptTime(d.receiptTime || '');
     applyRemoteSig('sig0', d.sig0); applyRemoteSig('sig1', d.sig1); applyRemoteSig('sig2', d.sig2);
     calcTotalQty(); calcCompletion();
   } finally { applyingRemote = false; }
@@ -2278,6 +2307,20 @@ function syncOrderDate(iso) { document.getElementById('orderDateDisplayText').te
 function syncReceiptDate(iso) { document.getElementById('receiptDateDisplayText').textContent = isoToHeb(iso) || '—'; }
 function setTodayDate() { const iso = todayISO(); document.getElementById('dateNative').value = iso; syncDate(iso); }
 
+// ── Time helpers (the "clock scale" fields) ──
+function nowHM() { const d = new Date(); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+function syncDepTime(hm) { document.getElementById('depTimeDisplayText').textContent = hm || '—'; }
+function syncReceiptTime(hm) { document.getElementById('receiptTimeDisplayText').textContent = hm || '—'; }
+function setNowDepTime() { const hm = nowHM(); document.getElementById('depTime').value = hm; syncDepTime(hm); }
+
+// ── Default ALL date fields to today (the real moment the document is created) ──
+function setAllDatesToday() {
+  const iso = todayISO();
+  setTodayDate();
+  document.getElementById('orderDateNative').value = iso; syncOrderDate(iso);
+  document.getElementById('receiptDateNative').value = iso; syncReceiptDate(iso);
+}
+
 // ══════════════════════════════════════════
 //  COMPLETION
 // ══════════════════════════════════════════
@@ -2383,6 +2426,11 @@ function saveAndNext() {
     total: document.getElementById('totalField').value,
     driver: document.getElementById('driverName').value,
     vehicle: document.getElementById('vehicleNum').value,
+    depTime: document.getElementById('depTime').value,
+    orderDateIso: document.getElementById('orderDateNative').value,
+    receiptDateIso: document.getElementById('receiptDateNative').value,
+    receiptDateHeb: isoToHeb(document.getElementById('receiptDateNative').value),
+    receiptTime: document.getElementById('receiptTime').value,
     sig0: sigData.sig0 || null,
     sig1: sigData.sig1 || null,
     sig2: sigData.sig2 || null,
@@ -2432,13 +2480,16 @@ function discardCurrentDoc() {
 }
 
 function clearForm() {
-  ['clientField','orderNumField','totalField','driverName','vehicleNum','depTime'].forEach(id => {
+  ['clientField','orderNumField','totalField','driverName','vehicleNum','depTime','receiptTime'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   ['dateNative','orderDateNative','receiptDateNative'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   ['dateDisplayText','orderDateDisplayText','receiptDateDisplayText'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  ['depTimeDisplayText','receiptTimeDisplayText'].forEach(id => {
     const el = document.getElementById(id); if (el) el.textContent = '—';
   });
   tbody.querySelectorAll('input').forEach(i => i.value = '');
@@ -2453,7 +2504,8 @@ function clearForm() {
   const empField = document.getElementById('employeeNumField');
   if (empField) { empField.value = ''; enforceEmployeeNum(empField); }
   setRecipientMode('customer');
-  setTodayDate();
+  setAllDatesToday();
+  setNowDepTime();
   calcTotalQty();
   setTimeout(calcCompletion, 50);
 }
@@ -2885,7 +2937,7 @@ function renderDocPage(doc) {
     </table>
     <div class="doc-footer-block">
       <div class="footer-row">
-        <div>שם הנהג: ${doc.driver||'______________'} &nbsp;&nbsp; מס׳ רכב: ${doc.vehicle||'__________'}</div>
+        <div>שם הנהג: ${doc.driver||'______________'} &nbsp;&nbsp; מס׳ רכב: ${doc.vehicle||'__________'} &nbsp;&nbsp; שעה: ${doc.depTime||'____'}</div>
         <div class="sig-cell">
           <span class="sig-label">חתימה:</span>
           ${doc.sig0
@@ -2894,7 +2946,7 @@ function renderDocPage(doc) {
         </div>
       </div>
       <div class="footer-row" style="margin-top:8px;">
-        <div>את הנ״ל קבלתי בשלמות, ביום: ____________ שעה: ______</div>
+        <div>את הנ״ל קבלתי בשלמות, ביום: ${doc.receiptDateHeb||'____________'} שעה: ${doc.receiptTime||'______'}</div>
         <div class="sig-cell">
           <span class="sig-label">חתימה:</span>
           ${doc.sig1
@@ -3584,7 +3636,8 @@ window.addEventListener('load', () => {
     updateSearchPanelState();
   }
 
-  setTodayDate();
+  setAllDatesToday();
+  setNowDepTime();
   renderBarcode(docNum);
   calcCompletion();
   initSignPad();

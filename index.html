@@ -114,7 +114,7 @@
     border: none; border-radius: 3px; color: white; cursor: pointer;
     font-size: 16px; display: flex; align-items: center; justify-content: center;
   }
-  .search-fields { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1.5px solid var(--border); }
+  .search-fields { display: grid; grid-template-columns: 1fr 1fr 1.4fr; border-bottom: 1.5px solid var(--border); }
   .search-field-group { padding: 14px 20px; display: flex; flex-direction: column; gap: 6px; border-left: 1.5px solid var(--border); }
   .search-field-group:last-child { border-left: none; }
   .search-field-label { font-size: 10px; font-weight: 700; color: var(--light); letter-spacing: 0.5px; text-transform: uppercase; }
@@ -827,6 +827,23 @@
   <!-- Search filters row -->
   <div class="search-fields">
     <div class="search-field-group">
+      <div class="search-field-label">סינון לפי שם (לקוח / עובד / ספק)</div>
+      <div class="search-input-row" style="gap:6px;">
+        <input class="search-input" type="text" id="searchByName"
+          placeholder="הקלד שם..." style="flex:1;"
+          oninput="doSearch()"
+          onkeydown="if(event.key==='Escape'){this.value='';doSearch();}">
+        <select id="searchByRecipientMode" onchange="doSearch()"
+          style="font-family:Heebo,sans-serif;font-size:11px;font-weight:600;color:var(--dark);
+                 border:1.5px solid var(--border);border-radius:4px;padding:6px 8px;background:white;outline:none;">
+          <option value="">הכל</option>
+          <option value="customer">לקוחות</option>
+          <option value="employee">עובדים</option>
+          <option value="supplier">ספקים</option>
+        </select>
+      </div>
+    </div>
+    <div class="search-field-group">
       <div class="search-field-label">סינון לפי מספר תעודה</div>
       <div class="search-input-row">
         <input class="search-input" type="text" id="searchByNum"
@@ -1004,6 +1021,8 @@
             style="padding:1px 8px;font-family:Heebo,sans-serif;font-size:9px;font-weight:700;border:none;background:var(--dark);color:white;cursor:pointer;transition:all 0.15s;">לקוח</button>
           <button id="btnRecipientEmployee" onclick="setRecipientMode('employee')"
             style="padding:1px 8px;font-family:Heebo,sans-serif;font-size:9px;font-weight:700;border:none;background:transparent;color:var(--mid);cursor:pointer;transition:all 0.15s;">עובד</button>
+          <button id="btnRecipientSupplier" onclick="setRecipientMode('supplier')"
+            style="padding:1px 8px;font-family:Heebo,sans-serif;font-size:9px;font-weight:700;border:none;background:transparent;color:var(--mid);cursor:pointer;transition:all 0.15s;">ספק</button>
         </div>
       </div>
       <!-- Name field -->
@@ -1177,7 +1196,7 @@
 
 <!-- View doc Modal -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
+  <div class="modal" id="detailModal" style="width:860px;max-width:95vw;">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle">תעודה מס׳ —</div>
       <button class="modal-close" onclick="closeModal()">×</button>
@@ -1591,6 +1610,9 @@ function startDraftSync(user) {
 }
 
 function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+function recipientLabelFor(doc) {
+  return doc.recipientMode === 'employee' ? 'עובד:' : (doc.recipientMode === 'supplier' ? 'ספק:' : 'לקוח:');
+}
 
 function serializeDraft() {
   const items = [];
@@ -1680,18 +1702,23 @@ function applyRecipientVisual(mode) {
   const empWrap = document.getElementById('employeeNumWrap');
   const btnC = document.getElementById('btnRecipientCustomer');
   const btnE = document.getElementById('btnRecipientEmployee');
-  if (mode === 'customer') {
-    label.textContent = 'לכבוד — לקוח';
-    document.getElementById('clientField').placeholder = 'שם הלקוח / החברה';
-    empWrap.style.display = 'none';
-    btnC.style.background = 'var(--dark)'; btnC.style.color = 'white';
-    btnE.style.background = 'transparent'; btnE.style.color = 'var(--mid)';
-  } else {
+  const btnS = document.getElementById('btnRecipientSupplier');
+  [btnC, btnE, btnS].forEach(b => { b.style.background = 'transparent'; b.style.color = 'var(--mid)'; });
+  if (mode === 'employee') {
     label.textContent = 'לכבוד — עובד';
     document.getElementById('clientField').placeholder = 'שם העובד';
     empWrap.style.display = 'block';
     btnE.style.background = 'var(--blue)'; btnE.style.color = 'white';
-    btnC.style.background = 'transparent'; btnC.style.color = 'var(--mid)';
+  } else if (mode === 'supplier') {
+    label.textContent = 'לכבוד — ספק';
+    document.getElementById('clientField').placeholder = 'שם הספק / החברה';
+    empWrap.style.display = 'none';
+    btnS.style.background = 'var(--green)'; btnS.style.color = 'white';
+  } else {
+    label.textContent = 'לכבוד — לקוח';
+    document.getElementById('clientField').placeholder = 'שם הלקוח / החברה';
+    empWrap.style.display = 'none';
+    btnC.style.background = 'var(--dark)'; btnC.style.color = 'white';
   }
 }
 function applyOrderVisual(mode) {
@@ -2498,6 +2525,8 @@ function syncSearchDateTo(iso) {
 
 function clearSearchFilters() {
   document.getElementById('freeSearch').value = '';
+  document.getElementById('searchByName').value = '';
+  document.getElementById('searchByRecipientMode').value = '';
   document.getElementById('searchByNum').value = '';
   document.getElementById('searchDateFrom').value = '';
   document.getElementById('searchDateTo').value = '';
@@ -2519,12 +2548,17 @@ function clearFreeSearch() {
 function updateActiveChips() {
   const chips  = document.getElementById('activeChips');
   const free   = (document.getElementById('freeSearch').value || '').trim();
+  const nameQ  = (document.getElementById('searchByName').value || '').trim();
+  const roleQ  = document.getElementById('searchByRecipientMode').value;
   const numQ   = (document.getElementById('searchByNum').value || '').trim();
   const dfrom  = document.getElementById('searchDateFrom').value;
   const dto    = document.getElementById('searchDateTo').value;
+  const roleLabel = { customer: 'לקוחות', employee: 'עובדים', supplier: 'ספקים' };
 
   let html = '';
   if (free)  html += `<span class="filter-chip chip-free">🔍 "${free}" <button onclick="clearFreeSearch()">×</button></span>`;
+  if (nameQ) html += `<span class="filter-chip chip-free">שם: "${nameQ}" <button onclick="document.getElementById('searchByName').value='';doSearch();updateActiveChips()">×</button></span>`;
+  if (roleQ) html += `<span class="filter-chip chip-free">${roleLabel[roleQ]} <button onclick="document.getElementById('searchByRecipientMode').value='';doSearch();updateActiveChips()">×</button></span>`;
   if (numQ)  html += `<span class="filter-chip chip-num">מס׳ ${numQ} <button onclick="document.getElementById('searchByNum').value='';doSearch();updateActiveChips()">×</button></span>`;
   if (dfrom) html += `<span class="filter-chip chip-date">מ: ${isoToHeb(dfrom)} <button onclick="document.getElementById('searchDateFrom').value='';syncSearchDateFrom('');doSearch();updateActiveChips()">×</button></span>`;
   if (dto)   html += `<span class="filter-chip chip-date">עד: ${isoToHeb(dto)} <button onclick="document.getElementById('searchDateTo').value='';syncSearchDateTo('');doSearch();updateActiveChips()">×</button></span>`;
@@ -2537,6 +2571,8 @@ function doSearch() {
   if (savedDocs.length === 0) return;
 
   const free   = (document.getElementById('freeSearch').value || '').trim().toLowerCase();
+  const nameQ  = (document.getElementById('searchByName').value || '').trim().toLowerCase();
+  const roleQ  = document.getElementById('searchByRecipientMode').value;
   const numQ   = (document.getElementById('searchByNum').value || '').trim();
   const dfrom  = document.getElementById('searchDateFrom').value;
   const dto    = document.getElementById('searchDateTo').value;
@@ -2563,6 +2599,10 @@ function doSearch() {
       ].join(' ').toLowerCase();
       if (!hay.includes(free)) return false;
     }
+    // name filter — matches the recipient name (customer / employee / supplier)
+    if (nameQ && !(d.client || '').toLowerCase().includes(nameQ)) return false;
+    // recipient-type filter (customer / employee / supplier)
+    if (roleQ && (d.recipientMode || 'customer') !== roleQ) return false;
     // numeric doc number filter
     if (numQ && !String(d.num).includes(numQ)) return false;
     // date range filter
@@ -2724,59 +2764,126 @@ function doPrint() {
   closePrintModal();
 }
 
-function buildPrintHTML(docs) {
-  const docPages = docs.map(doc => {
-    const itemRows = doc.items.map((it, i) => `
-      <tr>
-        <td class="rn">${i+1}</td>
-        <td>${it.cat||''}</td>
-        <td class="tdesc">${it.desc||''}</td>
-        <td class="tc">${it.qty||''}</td>
-        <td class="tc">${it.unit||''}</td>
-        <td>${it.unitdesc||''}</td>
-        <td class="tc">${it.total||''}</td>
-      </tr>`).join('');
+// ── CSS shared by the print window and the "full document" preview in the details modal ──
+const DOC_PAGE_STYLES = `
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Heebo',sans-serif; background:white; direction:rtl; }
+  .doc-page {
+    width:210mm; min-height:297mm; padding:12mm 14mm;
+    page-break-after:always; position:relative; border-bottom:1px dashed #ccc;
+    display:flex; flex-direction:column;
+  }
+  .doc-page:last-child { page-break-after:auto; border-bottom:none; }
+  .top-stripe { background:#CC0000; height:5px; width:100%; margin-bottom:12px; flex:none; }
+  .hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #ddd; flex:none; }
+  .company { font-size:9px; color:#555; line-height:1.7; border-right:3px solid #CC0000; padding-right:8px; }
+  .company strong { font-size:10px; color:#111; font-weight:800; display:block; }
+  .logo-wrap { text-align:right; }
+  .title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex:none; }
+  .doc-title-txt { font-size:20px; font-weight:800; }
+  .doc-title-txt span { color:#CC0000; }
+  .doc-num-big { background:#1a1a1a; color:white; font-size:18px; font-weight:800; letter-spacing:3px; padding:4px 16px; border-radius:2px; }
+  .meta-row { display:flex; gap:16px; flex-wrap:wrap; font-size:10px; background:#f8f8f6; padding:6px 10px; border:1px solid #e0e0dc; margin-bottom:8px; flex:none; }
+  .meta-item { display:flex; gap:4px; }
+  .ml { font-weight:700; color:#555; }
+  table { width:100%; border-collapse:collapse; font-size:10px; margin-bottom:0; flex:none; }
+  thead tr { background:#1a1a1a; color:white; }
+  thead th { padding:5px 6px; font-weight:600; font-size:9.5px; text-align:center; border-left:1px solid rgba(255,255,255,0.1); }
+  thead th:last-child { border-left:none; }
+  thead th:first-child { background:#CC0000; width:22px; }
+  tbody tr { border-bottom:1px solid #eee; }
+  tbody tr:nth-child(even) { background:#fafaf8; }
+  tbody td { padding:5px 6px; border-left:1px solid #eee; }
+  tbody td:last-child { border-left:none; }
+  tfoot tr { background:#ebebea; }
+  tfoot td { padding:5px 6px; border-left:1px solid #e0e0dc; }
+  .rn { width:22px; background:#f5f5f3; text-align:center; font-size:9px; color:#999; font-weight:600; }
+  .tc { text-align:center; }
+  .tdesc { text-align:right; }
+  /* The footer block is pushed to the bottom of the physical page instead of
+     floating right under the table, so the page fills out evenly. */
+  .doc-footer-block { margin-top:auto; padding-top:14px; flex:none; }
+  .footer-row { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#444; padding:6px 0; border-top:1px solid #e0e0dc; }
+  .bottom-note { display:flex; justify-content:space-between; font-size:9px; color:#999; margin-top:8px; padding-top:6px; border-top:1px solid #e0e0dc; }
+  .sig-cell { display:flex; align-items:center; gap:6px; min-width:160px; }
+  .sig-label { font-weight:700; white-space:nowrap; }
+  .sig-img { height:38px; width:auto; max-width:150px; object-fit:contain; border-bottom:1px solid #ccc; display:block; }
+  .sig-line { display:inline-block; width:130px; border-bottom:1px solid #aaa; height:38px; }
+  @media print {
+    body { margin:0; }
+    .doc-page { border-bottom:none; }
+    .print-controls { display:none !important; }
+  }
+  .print-controls {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; gap: 10px; justify-content: center; align-items: center;
+    background: #1a1a1a; padding: 10px 14px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  }
+  .print-controls button {
+    font-family: 'Heebo', sans-serif; font-size: 14px; font-weight: 700;
+    padding: 9px 22px; border-radius: 6px; border: none; cursor: pointer;
+  }
+  .pc-print { background: #CC0000; color: #fff; }
+  .pc-close { background: #fff; color: #1a1a1a; }
+  .print-controls .pc-hint { color:#bbb; font-size:11px; font-weight:500; margin-inline-start:6px; }
+`;
 
-    // Pad to 15 rows
-    const emptyRows = Array(Math.max(0, 15 - doc.items.length)).fill(0).map((_, i) => `
-      <tr><td class="rn">${doc.items.length + i + 1}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('');
+// ── Renders one full delivery-note page (used for print AND for the "view full document" preview ──
+function renderDocPage(doc) {
+  const itemRows = doc.items.map((it, i) => `
+    <tr>
+      <td class="rn">${i+1}</td>
+      <td>${it.cat||''}</td>
+      <td class="tdesc">${it.desc||''}</td>
+      <td class="tc">${it.qty||''}</td>
+      <td class="tc">${it.unit||''}</td>
+      <td>${it.unitdesc||''}</td>
+      <td class="tc">${it.total||''}</td>
+    </tr>`).join('');
 
-    return `
-    <div class="doc-page">
-      <div class="top-stripe"></div>
-      <div class="hdr">
-        <div class="company">
-          <strong>עוסק מורשה מס׳ 557652914</strong><br>
-          סמטת התבור 4, אזור תעשיה סגולה, פתח תקוה 4969104<br>
-          טל׳ 073-2001431 | פקס 03-9216492
-        </div>
-        <div class="logo-wrap"><img src="${AFCON_LOGO}" alt="אפקון" style="height:64px;width:auto;display:block;margin-inline-start:auto;"></div>
+  // Pad with blank rows (min 15, or a couple extra beyond the item count) for handwritten additions
+  const rowsToPad = Math.max(15, doc.items.length + 2);
+  const emptyRows = Array(Math.max(0, rowsToPad - doc.items.length)).fill(0).map((_, i) => `
+    <tr><td class="rn">${doc.items.length + i + 1}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`).join('');
+
+  return `
+  <div class="doc-page">
+    <div class="top-stripe"></div>
+    <div class="hdr">
+      <div class="company">
+        <strong>עוסק מורשה מס׳ 557652914</strong><br>
+        סמטת התבור 4, אזור תעשיה סגולה, פתח תקוה 4969104<br>
+        טל׳ 073-2001431 | פקס 03-9216492
       </div>
-      <div class="title-row">
-        <div class="doc-title-txt">תעודת משלוח <span>מס׳</span></div>
-        <div class="doc-num-big">${doc.num}</div>
-      </div>
-      ${doc.cancelled ? '<div style="text-align:center;color:#CC0000;font-weight:800;font-size:16px;letter-spacing:4px;border:2px solid #CC0000;border-radius:4px;padding:4px;margin-bottom:8px;">תעודה מבוטלת</div>' : ''}
-      <div class="meta-row">
-        <div class="meta-item"><span class="ml">תאריך:</span> ${doc.dateHeb}</div>
-        <div class="meta-item"><span class="ml">${doc.workType==='charge'?'חיוב':'זיכוי'} עבודה:</span> ${doc.projectNum||'—'}</div>
-        <div class="meta-item"><span class="ml">${doc.recipientMode === 'employee' ? 'עובד:' : 'לקוח:'}</span> ${doc.client||'—'}${doc.employeeNum ? ` (מס׳ ${doc.employeeNum})` : ''}</div>
-        <div class="meta-item"><span class="ml">הזמנה:</span> ${doc.orderNum||'—'}</div>
-      </div>
-      <table>
-        <thead><tr>
-          <th class="rn">#</th><th>מס׳ קטלוגי</th><th>תאור</th>
-          <th class="tc">כמות</th><th class="tc">יח׳</th>
-          <th>תאור יח׳</th><th class="tc">סה״כ</th>
-        </tr></thead>
-        <tbody>${itemRows}${emptyRows}</tbody>
-        <tfoot><tr>
-          <td colspan="3" style="text-align:right;padding-left:8px;font-weight:700;font-size:10px;color:#666;">סה״כ</td>
-          <td class="tc" style="font-weight:800;">${doc.items.reduce((s,it)=>s+(parseFloat(it.qty)||0),0)||''}</td>
-          <td colspan="2"></td>
-          <td class="tc" style="font-weight:800;">${doc.total||''}</td>
-        </tr></tfoot>
-      </table>
+      <div class="logo-wrap"><img src="${AFCON_LOGO}" alt="אפקון" style="height:64px;width:auto;display:block;margin-inline-start:auto;"></div>
+    </div>
+    <div class="title-row">
+      <div class="doc-title-txt">תעודת משלוח <span>מס׳</span></div>
+      <div class="doc-num-big">${doc.num}</div>
+    </div>
+    ${doc.cancelled ? '<div style="text-align:center;color:#CC0000;font-weight:800;font-size:16px;letter-spacing:4px;border:2px solid #CC0000;border-radius:4px;padding:4px;margin-bottom:8px;">תעודה מבוטלת</div>' : ''}
+    <div class="meta-row">
+      <div class="meta-item"><span class="ml">תאריך:</span> ${doc.dateHeb}</div>
+      <div class="meta-item"><span class="ml">${doc.workType==='charge'?'חיוב':'זיכוי'} עבודה:</span> ${doc.projectNum||'—'}</div>
+      <div class="meta-item"><span class="ml">${recipientLabelFor(doc)}</span> ${doc.client||'—'}${doc.employeeNum ? ` (מס׳ ${doc.employeeNum})` : ''}</div>
+      <div class="meta-item"><span class="ml">הזמנה:</span> ${doc.orderNum||'—'}</div>
+    </div>
+    <table>
+      <thead><tr>
+        <th class="rn">#</th><th>מס׳ קטלוגי</th><th>תאור</th>
+        <th class="tc">כמות</th><th class="tc">יח׳</th>
+        <th>תאור יח׳</th><th class="tc">סה״כ</th>
+      </tr></thead>
+      <tbody>${itemRows}${emptyRows}</tbody>
+      <tfoot><tr>
+        <td colspan="3" style="text-align:right;padding-left:8px;font-weight:700;font-size:10px;color:#666;">סה״כ</td>
+        <td class="tc" style="font-weight:800;">${doc.items.reduce((s,it)=>s+(parseFloat(it.qty)||0),0)||''}</td>
+        <td colspan="2"></td>
+        <td class="tc" style="font-weight:800;">${doc.total||''}</td>
+      </tr></tfoot>
+    </table>
+    <div class="doc-footer-block">
       <div class="footer-row">
         <div>שם הנהג: ${doc.driver||'______________'} &nbsp;&nbsp; מס׳ רכב: ${doc.vehicle||'__________'}</div>
         <div class="sig-cell">
@@ -2810,73 +2917,19 @@ function buildPrintHTML(docs) {
         <span>המחסנאי המקבל</span>
         <span style="color:#CC0000;font-weight:700;">נא להחזיר עותק אחד חתום</span>
       </div>
-    </div>`;
-  }).join('');
+    </div>
+  </div>`;
+}
 
+function buildPrintHTML(docs) {
+  const docPages = docs.map(renderDocPage).join('');
   return `<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <title>תעודות משלוח — אפקון</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Heebo',sans-serif; background:white; direction:rtl; }
-  .doc-page { width:210mm; min-height:297mm; padding:12mm 14mm; page-break-after:always; position:relative; border-bottom:1px dashed #ccc; }
-  .doc-page:last-child { page-break-after:auto; border-bottom:none; }
-  .top-stripe { background:#CC0000; height:5px; width:100%; margin-bottom:12px; }
-  .hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #ddd; }
-  .company { font-size:9px; color:#555; line-height:1.7; border-right:3px solid #CC0000; padding-right:8px; }
-  .company strong { font-size:10px; color:#111; font-weight:800; display:block; }
-  .logo-wrap { text-align:right; }
-  .logo-txt { font-size:26px; font-weight:800; color:#1a1a1a; letter-spacing:-1px; line-height:1; }
-  .logo-sub { font-size:8px; color:#999; }
-  .title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .doc-title-txt { font-size:20px; font-weight:800; }
-  .doc-title-txt span { color:#CC0000; }
-  .doc-num-big { background:#1a1a1a; color:white; font-size:18px; font-weight:800; letter-spacing:3px; padding:4px 16px; border-radius:2px; }
-  .meta-row { display:flex; gap:16px; flex-wrap:wrap; font-size:10px; background:#f8f8f6; padding:6px 10px; border:1px solid #e0e0dc; margin-bottom:8px; }
-  .meta-item { display:flex; gap:4px; }
-  .ml { font-weight:700; color:#555; }
-  table { width:100%; border-collapse:collapse; font-size:10px; margin-bottom:10px; }
-  thead tr { background:#1a1a1a; color:white; }
-  thead th { padding:5px 6px; font-weight:600; font-size:9.5px; text-align:center; border-left:1px solid rgba(255,255,255,0.1); }
-  thead th:last-child { border-left:none; }
-  thead th:first-child { background:#CC0000; width:22px; }
-  tbody tr { border-bottom:1px solid #eee; }
-  tbody tr:nth-child(even) { background:#fafaf8; }
-  tbody td { padding:5px 6px; border-left:1px solid #eee; }
-  tbody td:last-child { border-left:none; }
-  tfoot tr { background:#ebebea; }
-  tfoot td { padding:5px 6px; border-left:1px solid #e0e0dc; }
-  .rn { width:22px; background:#f5f5f3; text-align:center; font-size:9px; color:#999; font-weight:600; }
-  .tc { text-align:center; }
-  .tdesc { text-align:right; }
-  .footer-row { display:flex; justify-content:space-between; align-items:center; font-size:10px; color:#444; padding:4px 0; border-top:1px solid #e0e0dc; }
-  .bottom-note { display:flex; justify-content:space-between; font-size:9px; color:#999; margin-top:8px; padding-top:6px; border-top:1px solid #e0e0dc; }
-  .sig-cell { display:flex; align-items:center; gap:6px; min-width:160px; }
-  .sig-label { font-weight:700; white-space:nowrap; }
-  .sig-img { height:38px; width:auto; max-width:150px; object-fit:contain; border-bottom:1px solid #ccc; display:block; }
-  .sig-line { display:inline-block; width:130px; border-bottom:1px solid #aaa; height:38px; }
-  @media print {
-    body { margin:0; }
-    .doc-page { border-bottom:none; }
-    .print-controls { display:none !important; }
-  }
-  .print-controls {
-    position: sticky; top: 0; z-index: 100;
-    display: flex; gap: 10px; justify-content: center; align-items: center;
-    background: #1a1a1a; padding: 10px 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-  }
-  .print-controls button {
-    font-family: 'Heebo', sans-serif; font-size: 14px; font-weight: 700;
-    padding: 9px 22px; border-radius: 6px; border: none; cursor: pointer;
-  }
-  .pc-print { background: #CC0000; color: #fff; }
-  .pc-close { background: #fff; color: #1a1a1a; }
-  .print-controls .pc-hint { color:#bbb; font-size:11px; font-weight:500; margin-inline-start:6px; }
-</style>
+<style>${DOC_PAGE_STYLES}</style>
 </head>
 <body>
 <div class="print-controls">
@@ -2888,6 +2941,34 @@ ${docPages}</body>
 </html>`;
 }
 
+// ── Single-document facsimile (no print-controls), used inside the details modal iframe ──
+function buildSingleDocPreviewHTML(doc) {
+  return `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>${DOC_PAGE_STYLES}
+  body { background:#e8e8e5; padding:10px; display:flex; justify-content:center; }
+  .doc-page { box-shadow:0 2px 14px rgba(0,0,0,0.12); border-bottom:none !important; }
+</style>
+</head>
+<body>${renderDocPage(doc)}</body>
+</html>`;
+}
+
+// ── Print a single document straight from the details modal ──
+function printSingleDoc(idx) {
+  const doc = savedDocs[idx];
+  if (!doc) return;
+  const win = window.open('', '_blank');
+  if (!win) { showToast('הדפדפן חסם את חלון ההדפסה', 'warn'); return; }
+  win.document.write(buildPrintHTML([doc]));
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 600);
+}
+
 // ══════════════════════════════════════════
 //  MODAL
 // ══════════════════════════════════════════
@@ -2897,34 +2978,25 @@ function openModal(idx) {
     ? ' <span style="background:var(--red);color:white;font-size:10px;font-weight:800;padding:2px 8px;border-radius:3px;letter-spacing:1px;">מבוטל</span>'
     : '';
   document.getElementById('modalTitle').innerHTML = `תעודה מס׳ ${doc.num}${cancelledBadge}`;
-  const itemRows = doc.items.map(it => `
-    <tr>
-      <td>${it.row}</td><td>${it.cat || '—'}</td>
-      <td style="text-align:right">${it.desc}</td>
-      <td style="text-align:center">${it.qty || '—'}</td>
-      <td style="text-align:center">${it.unit || '—'}</td>
-      <td style="text-align:center">${it.unitdesc || '—'}</td>
-      <td style="text-align:left">${it.total || '—'}</td>
-    </tr>`).join('');
+
+  // Full facsimile of the document, exactly as it prints — inside an isolated iframe
+  const previewHTML = buildSingleDocPreviewHTML(doc).replace(/"/g, '&quot;');
+
   document.getElementById('modalBody').innerHTML = `
-    <div class="modal-row"><span class="modal-row-label">תאריך:</span><span class="modal-row-val">${doc.dateHeb}</span></div>
-    <div class="modal-row"><span class="modal-row-label">${doc.recipientMode === 'employee' ? 'עובד:' : 'לקוח:'}</span><span class="modal-row-val">${doc.client || '—'}${doc.employeeNum ? ` &nbsp;|&nbsp; מס׳ עובד: <strong>${doc.employeeNum}</strong>` : ''}</span></div>
-    <div class="modal-row"><span class="modal-row-label">הזמנה מס׳:</span><span class="modal-row-val">${doc.orderNum || '—'}</span></div>
-    <div class="modal-row"><span class="modal-row-label">${doc.workType === 'charge' ? 'חיוב' : 'זיכוי'} פרויקט:</span><span class="modal-row-val">${doc.projectNum || '—'} ${doc.projectDesc ? '— ' + doc.projectDesc : ''}</span></div>
-    <div class="modal-row"><span class="modal-row-label">נהג:</span><span class="modal-row-val">${doc.driver || '—'} ${doc.vehicle ? '| רכב: ' + doc.vehicle : ''}</span></div>
-    <div class="modal-row"><span class="modal-row-label">סה״כ:</span><span class="modal-row-val" style="font-weight:800">${doc.total ? '₪' + doc.total : '—'}</span></div>
-    <table class="modal-items-table">
-      <thead><tr><th>#</th><th>קטלוג</th><th>תאור</th><th>כמות</th><th>יח׳</th><th>תאור יח׳</th><th>סה״כ</th></tr></thead>
-      <tbody>${itemRows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:12px">אין פריטים</td></tr>'}</tbody>
-    </table>
-    ${buildSignaturesBlock(doc)}
-    <div style="display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1.5px solid var(--border);">
+    <iframe srcdoc="${previewHTML}"
+      style="width:100%;height:min(75vh,900px);border:1px solid var(--border);border-radius:6px;background:#e8e8e5;"
+      title="תעודה מס׳ ${doc.num}"></iframe>
+    <div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1.5px solid var(--border);flex-wrap:wrap;">
+      <button onclick="printSingleDoc(${idx})"
+        style="flex:1;min-width:120px;padding:8px 12px;border-radius:4px;border:1.5px solid var(--blue);background:#f0f6ff;color:var(--blue);font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        🖨 הדפס תעודה זו
+      </button>
       <button onclick="toggleCancelDoc(${idx})"
-        style="flex:1;padding:8px 12px;border-radius:4px;border:1.5px solid ${doc.cancelled ? 'var(--green)' : '#d8a200'};background:white;color:${doc.cancelled ? 'var(--green)' : '#b45309'};font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        style="flex:1;min-width:120px;padding:8px 12px;border-radius:4px;border:1.5px solid ${doc.cancelled ? 'var(--green)' : '#d8a200'};background:white;color:${doc.cancelled ? 'var(--green)' : '#b45309'};font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
         ${doc.cancelled ? '↩ שחזר תעודה' : '⊘ בטל תעודה'}
       </button>
       <button onclick="deleteDoc(${idx})"
-        style="flex:1;padding:8px 12px;border-radius:4px;border:1.5px solid #fca5a5;background:white;color:#b91c1c;font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        style="flex:1;min-width:120px;padding:8px 12px;border-radius:4px;border:1.5px solid #fca5a5;background:white;color:#b91c1c;font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
         🗑 מחק תעודה
       </button>
     </div>`;
@@ -3008,24 +3080,32 @@ function setRecipientMode(mode) {
   const empInput = document.getElementById('employeeNumField');
   const btnCust  = document.getElementById('btnRecipientCustomer');
   const btnEmp   = document.getElementById('btnRecipientEmployee');
+  const btnSup   = document.getElementById('btnRecipientSupplier');
 
-  if (mode === 'customer') {
-    label.textContent = 'לכבוד — לקוח';
-    clientIn.placeholder = 'שם הלקוח / החברה';
-    empWrap.style.display = 'none';
-    btnCust.style.background = 'var(--dark)';
-    btnCust.style.color = 'white';
-    btnEmp.style.background = 'transparent';
-    btnEmp.style.color = 'var(--mid)';
-  } else {
+  // reset all three toggle buttons, then highlight the active one
+  [btnCust, btnEmp, btnSup].forEach(b => { b.style.background = 'transparent'; b.style.color = 'var(--mid)'; });
+
+  if (mode === 'employee') {
     label.textContent = 'לכבוד — עובד';
     clientIn.placeholder = 'שם העובד';
     empWrap.style.display = 'block';
     btnEmp.style.background = 'var(--blue)';
     btnEmp.style.color = 'white';
-    btnCust.style.background = 'transparent';
-    btnCust.style.color = 'var(--mid)';
     empInput.focus();
+  } else if (mode === 'supplier') {
+    label.textContent = 'לכבוד — ספק';
+    clientIn.placeholder = 'שם הספק / החברה';
+    empWrap.style.display = 'none';
+    btnSup.style.background = 'var(--green)';
+    btnSup.style.color = 'white';
+  } else {
+    mode = 'customer';
+    recipientMode = mode;
+    label.textContent = 'לכבוד — לקוח';
+    clientIn.placeholder = 'שם הלקוח / החברה';
+    empWrap.style.display = 'none';
+    btnCust.style.background = 'var(--dark)';
+    btnCust.style.color = 'white';
   }
 }
 

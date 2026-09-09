@@ -652,6 +652,8 @@
     padding: 12px; display: flex; justify-content: center; overflow: auto; max-height: 70vh;
   }
   #docPhotoCanvas { touch-action: none; cursor: crosshair; box-shadow: 0 2px 10px rgba(0,0,0,0.12); background: white; }
+  .doc-photo-table-note { margin-top: 10px; font-size: 11px; color: var(--mid); text-align: center; }
+  .doc-photo-table-note a { color: var(--blue); font-weight: 600; cursor: pointer; }
 
   /* Toast */
   .toast {
@@ -1148,11 +1150,14 @@
       <div class="photo-canvas-wrap">
         <canvas id="docPhotoCanvas"></canvas>
       </div>
+      <div class="doc-photo-table-note" id="docPhotoTableNote">
+        טבלת הפריטים הוסתרה — התמונה משמשת כרשימת הפריטים. <a href="javascript:void(0)" onclick="toggleItemsTableOverride()" id="docPhotoTableToggleLink">להציג גם את הטבלה</a>
+      </div>
     </div>
   </div>
 
   <!-- Table -->
-  <div class="table-wrap">
+  <div class="table-wrap" id="tableWrap">
     <table class="items-table">
       <thead>
         <tr>
@@ -2454,13 +2459,13 @@ function saveAndNext() {
     }
   });
 
-  // ── חובה לפחות שורה אחת ──
-  if (items.length === 0) {
+  // ── חובה לפחות שורת פריט אחת — אלא אם כן צורפה תמונת תעודה במקום ──
+  if (items.length === 0 && !docPhotoImage) {
     // Shake the table and show error
     const tableWrap = document.querySelector('.table-wrap');
     tableWrap.classList.add('shake-error');
     setTimeout(() => tableWrap.classList.remove('shake-error'), 600);
-    showToast('⚠ יש למלא לפחות שורת פריט אחת לפני שמירה', 'warn');
+    showToast('⚠ יש למלא לפחות שורת פריט אחת, או לצרף תמונת תעודה, לפני שמירה', 'warn');
     // Focus first desc cell
     const firstDesc = tbody.querySelector('[data-col="desc"]');
     if (firstDesc) firstDesc.focus();
@@ -2571,6 +2576,8 @@ function clearForm() {
   if (dpWrap) dpWrap.style.display = 'none';
   const dpFile = document.getElementById('docPhotoFileInput');
   if (dpFile) dpFile.value = '';
+  itemsTableOverride = false;
+  updateItemsTableVisibility();
   calcTotalQty();
   setTimeout(calcCompletion, 50);
 }
@@ -2989,6 +2996,7 @@ function renderDocPage(doc) {
       <div class="meta-item"><span class="ml">${recipientLabelFor(doc)}</span> ${doc.client||'—'}${doc.employeeNum ? ` (מס׳ ${doc.employeeNum})` : ''}</div>
       <div class="meta-item"><span class="ml">הזמנה:</span> ${doc.orderNum||'—'}</div>
     </div>
+    ${doc.items && doc.items.length ? `
     <table>
       <thead><tr>
         <th class="rn">#</th><th>מס׳ קטלוגי</th><th>תאור</th>
@@ -3002,8 +3010,8 @@ function renderDocPage(doc) {
         <td colspan="2"></td>
         <td class="tc" style="font-weight:800;">${doc.total||''}</td>
       </tr></tfoot>
-    </table>
-    ${doc.photo ? `<div class="doc-photo-block"><div class="doc-photo-block-label">📷 תמונת דף התעודה המקורי</div><img src="${doc.photo}" class="doc-photo-img"></div>` : ''}
+    </table>` : ''}
+    ${doc.photo ? `<div class="doc-photo-block"><div class="doc-photo-block-label">📷 תמונת דף התעודה המקורי${(!doc.items || !doc.items.length) ? ' (משמשת כרשימת הפריטים)' : ''}</div><img src="${doc.photo}" class="doc-photo-img" style="${(!doc.items || !doc.items.length) ? 'max-height:600px;' : ''}"></div>` : ''}
     <div class="doc-footer-block">
       <div class="footer-row">
         <div>שם הנהג: ${doc.driver||'______________'} &nbsp;&nbsp; מס׳ רכב: ${doc.vehicle||'__________'} &nbsp;&nbsp; שעה: ${doc.depTime||'____'}</div>
@@ -3938,12 +3946,31 @@ function loadDocPhotoFromDataURL(dataUrl) {
       document.getElementById('docPhotoEditorWrap').style.display = 'block';
       document.getElementById('docPhotoScale').value = 100;
       sizeDocPhotoCanvas(100);
-      showToast('✓ תמונה נטענה (הומרה לשחור-לבן לחיסכון בנפח) — אפשר לצייר, להוסיף הערות ולשנות גודל', 'green');
+      itemsTableOverride = false;
+      updateItemsTableVisibility();
+      showToast('✓ תמונה נטענה (הומרה לשחור-לבן לחיסכון בנפח) — טבלת הפריטים הוסתרה', 'green');
     };
     img.src = grayUrl;
   };
   rawImg.onerror = () => showToast('⚠ לא ניתן לטעון את הקובץ כתמונה', 'warn');
   rawImg.src = dataUrl;
+}
+
+// ── Items table shows/hides automatically based on whether a document photo is attached ──
+let itemsTableOverride = false; // true = user explicitly asked to see the table even though a photo is attached
+function updateItemsTableVisibility() {
+  const tableWrap = document.getElementById('tableWrap');
+  const note = document.getElementById('docPhotoTableNote');
+  const link = document.getElementById('docPhotoTableToggleLink');
+  const hasPhoto = !!docPhotoImage;
+  const shouldHideTable = hasPhoto && !itemsTableOverride;
+  if (tableWrap) tableWrap.style.display = shouldHideTable ? 'none' : '';
+  if (note) note.style.display = hasPhoto ? 'block' : 'none';
+  if (link) link.textContent = itemsTableOverride ? 'הסתר את הטבלה שוב' : 'להציג גם את הטבלה';
+}
+function toggleItemsTableOverride() {
+  itemsTableOverride = !itemsTableOverride;
+  updateItemsTableVisibility();
 }
 
 function sizeDocPhotoCanvas(pct) {
@@ -4046,6 +4073,8 @@ function removeDocPhoto() {
   docPhotoAnnotations = [];
   document.getElementById('docPhotoEditorWrap').style.display = 'none';
   document.getElementById('docPhotoFileInput').value = '';
+  itemsTableOverride = false;
+  updateItemsTableVisibility();
 }
 
 // Flat, compressed export (grayscale image + annotations baked together) — this is what gets saved with the document.

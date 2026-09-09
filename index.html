@@ -624,11 +624,19 @@
   .bottom-bar { display: flex; justify-content: space-between; align-items: center; margin: 16px 40px 0; padding-top: 12px; border-top: 1px solid #e0e0dc; font-size: 10.5px; color: var(--light); font-weight: 500; }
   .bottom-bar span.accent { color: var(--red); font-weight: 700; }
 
-  /* ══ PHOTO ATTACHMENT + ANNOTATION ══ */
-  .photo-section { border-top: 2px solid var(--border); margin: 14px 40px 0; padding-top: 14px; }
-  .photo-section-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-  .photo-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .photo-hint { font-size: 10.5px; color: var(--light); }
+  /* ══ PER-ROW PHOTO ATTACHMENT (click a row's camera icon, or paste while a row is active) ══ */
+  .row-photo-cell { text-align: center; padding: 2px !important; }
+  .row-photo-btn {
+    width: 30px; height: 30px; border-radius: 4px; border: 1.5px dashed var(--border);
+    background: #fafaf8; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    padding: 0; overflow: hidden; transition: border-color 0.15s;
+  }
+  .row-photo-btn:hover { border-color: var(--red); }
+  .row-photo-btn.has-photo { border-style: solid; border-color: var(--border); }
+  .row-photo-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .row-photo-icon { font-size: 13px; opacity: 0.55; }
+
+  /* Row photo editor modal */
   .photo-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     background: #f5f5f3; border: 1.5px solid var(--border); border-radius: 5px 5px 0 0;
@@ -649,9 +657,11 @@
   .photo-canvas-wrap {
     border: 1.5px solid var(--border); border-top: none; border-radius: 0 0 5px 5px;
     background: repeating-conic-gradient(#f0f0ee 0% 25%, #fafaf8 0% 50%) 50% / 20px 20px;
-    padding: 12px; display: flex; justify-content: center; overflow: auto;
+    padding: 12px; display: flex; justify-content: center; overflow: auto; max-height: 60vh;
   }
-  #photoCanvas { touch-action: none; cursor: crosshair; box-shadow: 0 2px 10px rgba(0,0,0,0.12); background: white; }
+  #rowPhotoCanvas { touch-action: none; cursor: crosshair; box-shadow: 0 2px 10px rgba(0,0,0,0.12); background: white; }
+  .row-photo-empty-hint { padding: 30px 16px; text-align: center; color: var(--light); font-size: 12.5px; }
+  .row-photo-empty-hint button { margin-top: 10px; }
 
   /* Toast */
   .toast {
@@ -719,7 +729,7 @@
     .doc-number-center { position: static; transform: none; margin-top: 10px; align-items: flex-start; }
 
     .table-wrap { padding: 0 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .items-table { min-width: 620px; }
+    .items-table { min-width: 660px; }
 
     .search-fields { grid-template-columns: 1fr; }
     .search-field-group { border-left: none; border-bottom: 1.5px solid var(--border); }
@@ -1134,6 +1144,7 @@
           <th style="width:40px;">יח׳</th>
           <th style="width:90px;">תאור יח׳</th>
           <th style="width:80px;">סה״כ</th>
+          <th style="width:38px;">📷</th>
         </tr>
       </thead>
       <tbody id="itemsBody"></tbody>
@@ -1195,35 +1206,8 @@
     </div>
   </div>
 
-  <!-- Photo attachment + annotation -->
-  <div class="photo-section" id="photoSection">
-    <div class="photo-section-header">
-      <span class="field-label">📷 תמונה מצורפת (אופציונלי)</span>
-      <div class="photo-actions" id="photoActionsBar">
-        <button class="btn-outline" onclick="document.getElementById('photoFileInput').click()">📁 ייבוא תמונה</button>
-        <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="handlePhotoFileInput(event)">
-        <span class="photo-hint">אפשר גם להדביק תמונה מהלוח (Ctrl+V) בכל מקום בתעודה</span>
-      </div>
-    </div>
-
-    <div id="photoEditorWrap" style="display:none;">
-      <div class="photo-toolbar">
-        <button class="photo-tool-btn active" id="toolPenBtn" onclick="setPhotoTool('pen')">✏️ ציור</button>
-        <button class="photo-tool-btn" id="toolTextBtn" onclick="setPhotoTool('text')">🔤 הערת טקסט</button>
-        <input type="color" id="photoColor" value="#CC0000" title="צבע סימון">
-        <span class="photo-toolbar-sep"></span>
-        <button onclick="undoPhotoAnnotation()">↩ בטל אחרון</button>
-        <button onclick="clearPhotoAnnotations()">🧹 נקה סימונים</button>
-        <span class="photo-toolbar-sep"></span>
-        <label style="font-size:11px;color:var(--mid);white-space:nowrap;">גודל:</label>
-        <input type="range" id="photoScale" min="30" max="150" value="100" step="5" oninput="scalePhotoCanvas(this.value)" style="width:110px;">
-        <button class="photo-remove-btn" onclick="removePhoto()">🗑 הסר תמונה</button>
-      </div>
-      <div class="photo-canvas-wrap">
-        <canvas id="photoCanvas"></canvas>
-      </div>
-    </div>
-  </div>
+  <!-- Hidden file input used for importing a photo into a specific item row -->
+  <input type="file" id="rowPhotoFileInput" accept="image/*" style="display:none" onchange="handleRowPhotoFileInput(event)">
 
   <div class="bottom-bar">
     <span>המחסנאי המקבל</span>
@@ -1231,6 +1215,33 @@
   </div>
 </div>
 
+<!-- Row photo editor modal — opened by clicking an item row's camera icon, or by pasting an image while a row is active -->
+<div class="modal-overlay" id="rowPhotoModalOverlay" onclick="if(event.target===this)closeRowPhotoEditor()">
+  <div class="modal" style="width:min(820px,95vw);">
+    <div class="modal-header">
+      <div class="modal-title" id="rowPhotoModalTitle">תמונה — שורה 1</div>
+      <button class="modal-close" onclick="closeRowPhotoEditor()">×</button>
+    </div>
+    <div class="modal-body" id="rowPhotoModalBody">
+      <div class="photo-toolbar">
+        <button class="photo-tool-btn active" id="rowToolPenBtn" onclick="setRowPhotoTool('pen')">✏️ ציור</button>
+        <button class="photo-tool-btn" id="rowToolTextBtn" onclick="setRowPhotoTool('text')">🔤 הערת טקסט</button>
+        <input type="color" id="rowPhotoColor" value="#CC0000" title="צבע סימון">
+        <span class="photo-toolbar-sep"></span>
+        <button onclick="undoRowPhotoAnnotation()">↩ בטל אחרון</button>
+        <button onclick="clearRowPhotoAnnotations()">🧹 נקה סימונים</button>
+        <span class="photo-toolbar-sep"></span>
+        <label style="font-size:11px;color:var(--mid);white-space:nowrap;">גודל:</label>
+        <input type="range" id="rowPhotoScale" min="30" max="150" value="100" step="5" oninput="scaleRowPhotoCanvas(this.value)" style="width:110px;">
+        <button onclick="document.getElementById('rowPhotoFileInput').click()">🔄 החלף תמונה</button>
+        <button class="photo-remove-btn" onclick="removeRowPhoto()">🗑 הסר תמונה</button>
+      </div>
+      <div class="photo-canvas-wrap">
+        <canvas id="rowPhotoCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Print Range Modal -->
 <div class="modal-overlay" id="printModalOverlay" onclick="if(event.target===this)closePrintModal()">
@@ -1930,9 +1941,23 @@ for (let i = 1; i <= 15; i++) {
     <td><input type="text" data-row="${i}" data-col="qty" oninput="calcTotalQty()" style="font-weight:600;"></td>
     <td><input type="text" data-row="${i}" data-col="unit"></td>
     <td><input type="text" data-row="${i}" data-col="unitdesc"></td>
-    <td><input type="text" data-row="${i}" data-col="total"></td>`;
+    <td><input type="text" data-row="${i}" data-col="total"></td>
+    <td class="row-photo-cell">
+      <button type="button" class="row-photo-btn" id="rowPhotoBtn${i}" data-row="${i}" onclick="onRowPhotoBtnClick(${i})" title="הוסף / ערוך תמונה לשורה זו">
+        <span class="row-photo-icon">📷</span>
+      </button>
+    </td>`;
   tbody.appendChild(tr);
 }
+
+// Track which row the user last interacted with, so paste (Ctrl+V) knows where to attach the image
+let activeRowIndex = 1;
+tbody.addEventListener('focusin', (e) => {
+  const tr = e.target.closest('tr');
+  if (!tr) return;
+  const idx = [...tbody.children].indexOf(tr) + 1;
+  if (idx > 0) activeRowIndex = idx;
+});
 
 // ══════════════════════════════════════════
 //  CALC TOTAL QTY
@@ -2444,14 +2469,16 @@ function saveAndNext() {
   tbody.querySelectorAll('tr').forEach((row, i) => {
     const desc = row.querySelector('[data-col="desc"]');
     if (desc && desc.value.trim()) {
+      const rowNum = i + 1;
       items.push({
-        row: i + 1,
+        row: rowNum,
         cat: row.querySelector('[data-col="cat"]').value,
         desc: desc.value,
         qty: row.querySelector('[data-col="qty"]').value,
         unit: row.querySelector('[data-col="unit"]').value,
         unitdesc: row.querySelector('[data-col="unitdesc"]').value,
         total: row.querySelector('[data-col="total"]').value,
+        photo: renderRowPhotoDataURL(rowNum, 0.78),
       });
     }
   });
@@ -2490,7 +2517,6 @@ function saveAndNext() {
     receiptDateIso: document.getElementById('receiptDateNative').value,
     receiptDateHeb: isoToHeb(document.getElementById('receiptDateNative').value),
     receiptTime: document.getElementById('receiptTime').value,
-    photo: getPhotoDataURL(),
     sig0: sigData.sig0 || null,
     sig1: sigData.sig1 || null,
     sig2: sigData.sig2 || null,
@@ -2566,13 +2592,8 @@ function clearForm() {
   setRecipientMode('customer');
   setAllDatesToday();
   setNowDepTime();
-  // reset photo attachment silently (no confirm — this is a full-form reset)
-  photoImage = null;
-  photoAnnotations = [];
-  const peWrap = document.getElementById('photoEditorWrap');
-  if (peWrap) peWrap.style.display = 'none';
-  const pFile = document.getElementById('photoFileInput');
-  if (pFile) pFile.value = '';
+  // reset all row photo attachments silently (no confirm — this is a full-form reset)
+  resetAllRowPhotos();
   calcTotalQty();
   setTimeout(calcCompletion, 50);
 }
@@ -2929,8 +2950,11 @@ const DOC_PAGE_STYLES = `
   .sig-img { height:38px; width:auto; max-width:150px; object-fit:contain; border-bottom:1px solid #ccc; display:block; }
   .sig-line { display:inline-block; width:130px; border-bottom:1px solid #aaa; height:38px; }
   .doc-photo-block { margin: 4px 0 10px; flex: none; }
-  .doc-photo-label { font-size: 10px; font-weight: 800; color: #555; margin-bottom: 4px; }
-  .doc-photo-img { max-width: 100%; max-height: 260px; border: 1px solid #ddd; border-radius: 3px; display: block; }
+  .doc-photo-block-label { font-size: 10px; font-weight: 800; color: #555; margin-bottom: 6px; }
+  .doc-photo-gallery { display: flex; gap: 10px; flex-wrap: wrap; }
+  .doc-photo-item { text-align: center; }
+  .doc-photo-item img { max-width: 220px; max-height: 180px; border: 1px solid #ddd; border-radius: 3px; display: block; }
+  .doc-photo-item-caption { font-size: 8.5px; color: #888; margin-top: 3px; }
   @media print {
     body { margin:0; }
     .doc-page { border-bottom:none; }
@@ -3005,7 +3029,16 @@ function renderDocPage(doc) {
         <td class="tc" style="font-weight:800;">${doc.total||''}</td>
       </tr></tfoot>
     </table>
-    ${doc.photo ? `<div class="doc-photo-block"><div class="doc-photo-label">📷 תמונה מצורפת</div><img src="${doc.photo}" class="doc-photo-img"></div>` : ''}
+    ${(() => {
+      const withPhotos = (doc.items || []).filter(it => it.photo);
+      if (!withPhotos.length) return '';
+      const cells = withPhotos.map(it => `
+        <div class="doc-photo-item">
+          <img src="${it.photo}" alt="תמונה שורה ${it.row}">
+          <div class="doc-photo-item-caption">שורה ${it.row}${it.desc ? ' — ' + it.desc : ''}</div>
+        </div>`).join('');
+      return `<div class="doc-photo-block"><div class="doc-photo-block-label">📷 תמונות מצורפות לפריטים</div><div class="doc-photo-gallery">${cells}</div></div>`;
+    })()}
     <div class="doc-footer-block">
       <div class="footer-row">
         <div>שם הנהג: ${doc.driver||'______________'} &nbsp;&nbsp; מס׳ רכב: ${doc.vehicle||'__________'} &nbsp;&nbsp; שעה: ${doc.depTime||'____'}</div>
@@ -3861,87 +3894,156 @@ function clearAllSignatures() {
 }
 
 // ══════════════════════════════════════════
-//  PHOTO ATTACHMENT + ANNOTATION (import / paste / draw / stretch)
+//  PER-ROW PHOTO ATTACHMENT + ANNOTATION (import / paste / draw / stretch)
 // ══════════════════════════════════════════
-let photoImage = null;          // the loaded base image (HTMLImageElement)
-let photoAnnotations = [];      // [{type:'stroke', color, w, pts:[{x,y}...]}, {type:'text', color, x, y, text}]  — x/y/pts are 0..1 normalized
-let photoTool = 'pen';
-let photoDrawing = false;
-let photoCurrentStroke = null;
-const PHOTO_BASE_WIDTH = 720;   // canvas width in px at 100% scale
-const PHOTO_MAX_HEIGHT = 900;   // safety cap so a very tall image can't blow up the page
+let rowPhotos = {};             // { [rowIndex]: { img: HTMLImageElement, annotations: [...], scalePct: 100 } }
+let currentEditingRow = null;   // which row's modal is currently open
+let rowPhotoTool = 'pen';
+let rowPhotoDrawing = false;
+let rowPhotoCurrentStroke = null;
+const ROW_PHOTO_BASE_WIDTH = 720;   // canvas width in px at 100% scale
+const ROW_PHOTO_MAX_HEIGHT = 700;   // safety cap so a very tall image can't blow up the editor
 
-function setPhotoTool(tool) {
-  photoTool = tool;
-  document.getElementById('toolPenBtn').classList.toggle('active', tool === 'pen');
-  document.getElementById('toolTextBtn').classList.toggle('active', tool === 'text');
-  const canvas = document.getElementById('photoCanvas');
-  if (canvas) canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
+// ── Row camera-icon click: import a new photo, or open the editor if one already exists ──
+function onRowPhotoBtnClick(rowIndex) {
+  activeRowIndex = rowIndex;
+  if (rowPhotos[rowIndex] && rowPhotos[rowIndex].img) {
+    openRowPhotoEditor(rowIndex);
+  } else {
+    pendingImportRow = rowIndex;
+    document.getElementById('rowPhotoFileInput').click();
+  }
 }
 
-function handlePhotoFileInput(e) {
+let pendingImportRow = null;
+function handleRowPhotoFileInput(e) {
   const file = e.target.files && e.target.files[0];
+  const rowIndex = pendingImportRow || currentEditingRow || activeRowIndex || 1;
+  e.target.value = '';
   if (!file) return;
-  readImageFile(file);
-  e.target.value = ''; // allow re-selecting the same file later
+  readImageFileForRow(file, rowIndex);
 }
 
 // Global paste handler — only intercepts when the clipboard actually contains an image,
-// so normal text pasting into inputs/textareas is never affected.
+// so normal text pasting into inputs/textareas elsewhere in the form is never affected.
 document.addEventListener('paste', (e) => {
   const items = (e.clipboardData && e.clipboardData.items) || [];
   for (const item of items) {
     if (item.type && item.type.startsWith('image/')) {
       const file = item.getAsFile();
-      if (file) { e.preventDefault(); readImageFile(file); }
+      if (file) {
+        e.preventDefault();
+        const rowIndex = currentEditingRow || activeRowIndex || 1;
+        readImageFileForRow(file, rowIndex);
+      }
       return;
     }
   }
 });
 
-function readImageFile(file) {
+function readImageFileForRow(file, rowIndex) {
   const reader = new FileReader();
-  reader.onload = (ev) => loadPhotoFromDataURL(ev.target.result);
+  reader.onload = (ev) => loadRowPhotoFromDataURL(rowIndex, ev.target.result);
   reader.readAsDataURL(file);
 }
 
-function loadPhotoFromDataURL(dataUrl) {
+function loadRowPhotoFromDataURL(rowIndex, dataUrl) {
   const img = new Image();
   img.onload = () => {
-    photoImage = img;
-    photoAnnotations = [];
-    document.getElementById('photoEditorWrap').style.display = 'block';
-    document.getElementById('photoScale').value = 100;
-    sizePhotoCanvas(100);
-    showToast('✓ תמונה נטענה — אפשר לצייר, להוסיף הערות ולשנות גודל', 'green');
+    rowPhotos[rowIndex] = { img, annotations: [], scalePct: 100 };
+    refreshRowPhotoThumb(rowIndex);
+    showToast(`✓ תמונה נטענה לשורה ${rowIndex} — אפשר לצייר, להוסיף הערות ולשנות גודל`, 'green');
+    openRowPhotoEditor(rowIndex);
   };
   img.onerror = () => showToast('⚠ לא ניתן לטעון את הקובץ כתמונה', 'warn');
   img.src = dataUrl;
 }
 
-function sizePhotoCanvas(pct) {
-  if (!photoImage) return;
-  const canvas = document.getElementById('photoCanvas');
-  const ratio = photoImage.naturalHeight / photoImage.naturalWidth;
-  let w = PHOTO_BASE_WIDTH * (pct / 100);
+// ── Thumbnail shown on the row's camera button ──
+function refreshRowPhotoThumb(rowIndex) {
+  const btn = document.getElementById('rowPhotoBtn' + rowIndex);
+  if (!btn) return;
+  const rp = rowPhotos[rowIndex];
+  if (rp && rp.img) {
+    const thumbUrl = renderRowPhotoDataURL(rowIndex, 0.6);
+    btn.innerHTML = `<img src="${thumbUrl}" alt="תמונה שורה ${rowIndex}">`;
+    btn.classList.add('has-photo');
+  } else {
+    btn.innerHTML = `<span class="row-photo-icon">📷</span>`;
+    btn.classList.remove('has-photo');
+  }
+}
+
+// ── Flatten the row's image + annotations into a single compressed JPEG (used for thumbnail, save, and print) ──
+function renderRowPhotoDataURL(rowIndex, quality) {
+  const rp = rowPhotos[rowIndex];
+  if (!rp || !rp.img) return null;
+  const ratio = rp.img.naturalHeight / rp.img.naturalWidth;
+  let w = ROW_PHOTO_BASE_WIDTH * (rp.scalePct / 100);
   let h = w * ratio;
-  if (h > PHOTO_MAX_HEIGHT) { h = PHOTO_MAX_HEIGHT; w = h / ratio; }
+  if (h > ROW_PHOTO_MAX_HEIGHT) { h = ROW_PHOTO_MAX_HEIGHT; w = h / ratio; }
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.round(w));
+  off.height = Math.max(1, Math.round(h));
+  const ctx = off.getContext('2d');
+  ctx.drawImage(rp.img, 0, 0, off.width, off.height);
+  (rp.annotations || []).forEach(a => drawAnnotation(ctx, off, a));
+  return off.toDataURL('image/jpeg', quality == null ? 0.78 : quality);
+}
+
+// ── Modal editor ──
+function openRowPhotoEditor(rowIndex) {
+  if (!rowPhotos[rowIndex] || !rowPhotos[rowIndex].img) return;
+  currentEditingRow = rowIndex;
+  document.getElementById('rowPhotoModalTitle').textContent = `תמונה — שורה ${rowIndex}`;
+  document.getElementById('rowPhotoScale').value = rowPhotos[rowIndex].scalePct || 100;
+  setRowPhotoTool('pen');
+  sizeRowPhotoCanvas(rowPhotos[rowIndex].scalePct || 100);
+  document.getElementById('rowPhotoModalOverlay').classList.add('open');
+}
+
+function closeRowPhotoEditor() {
+  if (currentEditingRow) refreshRowPhotoThumb(currentEditingRow);
+  document.getElementById('rowPhotoModalOverlay').classList.remove('open');
+  currentEditingRow = null;
+}
+
+function setRowPhotoTool(tool) {
+  rowPhotoTool = tool;
+  document.getElementById('rowToolPenBtn').classList.toggle('active', tool === 'pen');
+  document.getElementById('rowToolTextBtn').classList.toggle('active', tool === 'text');
+  const canvas = document.getElementById('rowPhotoCanvas');
+  if (canvas) canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
+}
+
+function sizeRowPhotoCanvas(pct) {
+  const rp = rowPhotos[currentEditingRow];
+  if (!rp) return;
+  rp.scalePct = Number(pct);
+  const canvas = document.getElementById('rowPhotoCanvas');
+  const ratio = rp.img.naturalHeight / rp.img.naturalWidth;
+  let w = ROW_PHOTO_BASE_WIDTH * (rp.scalePct / 100);
+  let h = w * ratio;
+  if (h > ROW_PHOTO_MAX_HEIGHT) { h = ROW_PHOTO_MAX_HEIGHT; w = h / ratio; }
   canvas.width = Math.round(w);
   canvas.height = Math.round(h);
-  drawPhotoCanvas();
+  drawRowPhotoCanvas();
 }
 
-function scalePhotoCanvas(pct) { sizePhotoCanvas(pct); }
+function scaleRowPhotoCanvas(pct) { sizeRowPhotoCanvas(pct); }
 
-function drawPhotoCanvas() {
-  const canvas = document.getElementById('photoCanvas');
-  if (!canvas || !photoImage) return;
+function drawRowPhotoCanvas() {
+  const rp = rowPhotos[currentEditingRow];
+  const canvas = document.getElementById('rowPhotoCanvas');
+  if (!rp || !canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(photoImage, 0, 0, canvas.width, canvas.height);
-  photoAnnotations.forEach(a => drawAnnotation(ctx, canvas, a));
+  ctx.drawImage(rp.img, 0, 0, canvas.width, canvas.height);
+  rp.annotations.forEach(a => drawAnnotation(ctx, canvas, a));
 }
 
+// Shared low-level renderer for one annotation — used both by the live editor canvas
+// and by the offscreen flattening used for thumbnails / saved documents / print.
 function drawAnnotation(ctx, canvas, a) {
   if (a.type === 'stroke') {
     if (a.pts.length < 2) return;
@@ -3954,89 +4056,92 @@ function drawAnnotation(ctx, canvas, a) {
     ctx.stroke();
   } else if (a.type === 'text') {
     const x = a.x * canvas.width, y = a.y * canvas.height;
-    ctx.font = '700 ' + Math.max(14, canvas.width * 0.028) + 'px Heebo, sans-serif';
-    ctx.fillStyle = 'white';
+    ctx.font = '700 ' + Math.max(14, canvas.width * 0.032) + 'px Heebo, sans-serif';
+    ctx.textAlign = 'right';
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.textAlign = 'right';
     ctx.strokeText(a.text, x, y);
     ctx.fillStyle = a.color;
     ctx.fillText(a.text, x, y);
   }
 }
 
-function photoCanvasPoint(e) {
-  const canvas = document.getElementById('photoCanvas');
+function rowPhotoCanvasPoint(e) {
+  const canvas = document.getElementById('rowPhotoCanvas');
   const rect = canvas.getBoundingClientRect();
   const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
   const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
   return { x: cx / rect.width, y: cy / rect.height };
 }
 
-function photoPointerDown(e) {
-  if (!photoImage) return;
+function rowPhotoPointerDown(e) {
+  const rp = rowPhotos[currentEditingRow];
+  if (!rp) return;
   e.preventDefault();
-  const pt = photoCanvasPoint(e);
-  const color = document.getElementById('photoColor').value;
-  if (photoTool === 'text') {
+  const pt = rowPhotoCanvasPoint(e);
+  const color = document.getElementById('rowPhotoColor').value;
+  if (rowPhotoTool === 'text') {
     const text = prompt('טקסט ההערה:');
     if (text && text.trim()) {
-      photoAnnotations.push({ type: 'text', color, x: pt.x, y: pt.y, text: text.trim() });
-      drawPhotoCanvas();
+      rp.annotations.push({ type: 'text', color, x: pt.x, y: pt.y, text: text.trim() });
+      drawRowPhotoCanvas();
     }
     return;
   }
-  photoDrawing = true;
-  photoCurrentStroke = { type: 'stroke', color, w: 3, pts: [pt] };
-  photoAnnotations.push(photoCurrentStroke);
+  rowPhotoDrawing = true;
+  rowPhotoCurrentStroke = { type: 'stroke', color, w: 3, pts: [pt] };
+  rp.annotations.push(rowPhotoCurrentStroke);
 }
 
-function photoPointerMove(e) {
-  if (!photoDrawing || !photoCurrentStroke) return;
+function rowPhotoPointerMove(e) {
+  if (!rowPhotoDrawing || !rowPhotoCurrentStroke) return;
   e.preventDefault();
-  photoCurrentStroke.pts.push(photoCanvasPoint(e));
-  drawPhotoCanvas();
+  rowPhotoCurrentStroke.pts.push(rowPhotoCanvasPoint(e));
+  drawRowPhotoCanvas();
 }
 
-function photoPointerUp() {
-  photoDrawing = false;
-  photoCurrentStroke = null;
+function rowPhotoPointerUp() {
+  rowPhotoDrawing = false;
+  rowPhotoCurrentStroke = null;
 }
 
-function undoPhotoAnnotation() {
-  photoAnnotations.pop();
-  drawPhotoCanvas();
+function undoRowPhotoAnnotation() {
+  const rp = rowPhotos[currentEditingRow];
+  if (!rp) return;
+  rp.annotations.pop();
+  drawRowPhotoCanvas();
 }
 
-function clearPhotoAnnotations() {
-  photoAnnotations = [];
-  drawPhotoCanvas();
+function clearRowPhotoAnnotations() {
+  const rp = rowPhotos[currentEditingRow];
+  if (!rp) return;
+  rp.annotations = [];
+  drawRowPhotoCanvas();
 }
 
-function removePhoto() {
-  if (photoImage && !confirm('להסיר את התמונה מהתעודה?')) return;
-  photoImage = null;
-  photoAnnotations = [];
-  document.getElementById('photoEditorWrap').style.display = 'none';
-  document.getElementById('photoFileInput').value = '';
+function removeRowPhoto() {
+  if (!confirm('להסיר את התמונה משורה זו?')) return;
+  const rowIndex = currentEditingRow;
+  delete rowPhotos[rowIndex];
+  closeRowPhotoEditor();
+  refreshRowPhotoThumb(rowIndex);
 }
 
-// Flat, compressed export (image + annotations baked together) — this is what gets saved with the document
-function getPhotoDataURL() {
-  const canvas = document.getElementById('photoCanvas');
-  if (!photoImage || !canvas) return null;
-  return canvas.toDataURL('image/jpeg', 0.78);
+// Reset every row's photo (used when the whole form is cleared)
+function resetAllRowPhotos() {
+  rowPhotos = {};
+  for (let i = 1; i <= 15; i++) refreshRowPhotoThumb(i);
 }
 
-(function wirePhotoCanvasEvents() {
-  const canvas = document.getElementById('photoCanvas');
+(function wireRowPhotoCanvasEvents() {
+  const canvas = document.getElementById('rowPhotoCanvas');
   if (!canvas) return;
-  canvas.addEventListener('mousedown', photoPointerDown);
-  canvas.addEventListener('mousemove', photoPointerMove);
-  window.addEventListener('mouseup', photoPointerUp);
-  canvas.addEventListener('touchstart', photoPointerDown, { passive: false });
-  canvas.addEventListener('touchmove', photoPointerMove, { passive: false });
-  canvas.addEventListener('touchend', photoPointerUp);
+  canvas.addEventListener('mousedown', rowPhotoPointerDown);
+  canvas.addEventListener('mousemove', rowPhotoPointerMove);
+  window.addEventListener('mouseup', rowPhotoPointerUp);
+  canvas.addEventListener('touchstart', rowPhotoPointerDown, { passive: false });
+  canvas.addEventListener('touchmove', rowPhotoPointerMove, { passive: false });
+  canvas.addEventListener('touchend', rowPhotoPointerUp);
 })();</script>
 </body>
 </html>

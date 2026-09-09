@@ -624,19 +624,11 @@
   .bottom-bar { display: flex; justify-content: space-between; align-items: center; margin: 16px 40px 0; padding-top: 12px; border-top: 1px solid #e0e0dc; font-size: 10.5px; color: var(--light); font-weight: 500; }
   .bottom-bar span.accent { color: var(--red); font-weight: 700; }
 
-  /* ══ PER-ROW PHOTO ATTACHMENT (click a row's camera icon, or paste while a row is active) ══ */
-  .row-photo-cell { text-align: center; padding: 2px !important; }
-  .row-photo-btn {
-    width: 30px; height: 30px; border-radius: 4px; border: 1.5px dashed var(--border);
-    background: #fafaf8; cursor: pointer; display: flex; align-items: center; justify-content: center;
-    padding: 0; overflow: hidden; transition: border-color 0.15s;
-  }
-  .row-photo-btn:hover { border-color: var(--red); }
-  .row-photo-btn.has-photo { border-style: solid; border-color: var(--border); }
-  .row-photo-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .row-photo-icon { font-size: 13px; opacity: 0.55; }
-
-  /* Row photo editor modal */
+  /* ══ DOCUMENT PHOTO ATTACHMENT (photo of an existing paper page — one per document) ══ */
+  .doc-photo-section { border-top: 2px solid var(--border); margin: 14px 40px 0; padding-top: 14px; }
+  .doc-photo-section-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .doc-photo-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .doc-photo-hint { font-size: 10.5px; color: var(--light); }
   .photo-toolbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     background: #f5f5f3; border: 1.5px solid var(--border); border-radius: 5px 5px 0 0;
@@ -657,11 +649,9 @@
   .photo-canvas-wrap {
     border: 1.5px solid var(--border); border-top: none; border-radius: 0 0 5px 5px;
     background: repeating-conic-gradient(#f0f0ee 0% 25%, #fafaf8 0% 50%) 50% / 20px 20px;
-    padding: 12px; display: flex; justify-content: center; overflow: auto; max-height: 60vh;
+    padding: 12px; display: flex; justify-content: center; overflow: auto; max-height: 70vh;
   }
-  #rowPhotoCanvas { touch-action: none; cursor: crosshair; box-shadow: 0 2px 10px rgba(0,0,0,0.12); background: white; }
-  .row-photo-empty-hint { padding: 30px 16px; text-align: center; color: var(--light); font-size: 12.5px; }
-  .row-photo-empty-hint button { margin-top: 10px; }
+  #docPhotoCanvas { touch-action: none; cursor: crosshair; box-shadow: 0 2px 10px rgba(0,0,0,0.12); background: white; }
 
   /* Toast */
   .toast {
@@ -729,7 +719,7 @@
     .doc-number-center { position: static; transform: none; margin-top: 10px; align-items: flex-start; }
 
     .table-wrap { padding: 0 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .items-table { min-width: 660px; }
+    .items-table { min-width: 620px; }
 
     .search-fields { grid-template-columns: 1fr; }
     .search-field-group { border-left: none; border-bottom: 1.5px solid var(--border); }
@@ -1132,6 +1122,35 @@
     </div>
   </div>
 
+  <!-- Photo of an existing paper document (optional — instead of / alongside typing items manually) -->
+  <div class="doc-photo-section" id="docPhotoSection">
+    <div class="doc-photo-section-header">
+      <span class="field-label">📷 תמונה של דף התעודה המקורי (אופציונלי)</span>
+      <div class="doc-photo-actions">
+        <button class="btn-outline" onclick="document.getElementById('docPhotoFileInput').click()">📁 ייבוא תמונה</button>
+        <input type="file" id="docPhotoFileInput" accept="image/*" style="display:none" onchange="handleDocPhotoFileInput(event)">
+        <span class="doc-photo-hint">אפשר גם להדביק תמונה מהלוח (Ctrl+V) — התמונה תומר אוטומטית לשחור-לבן לחיסכון בנפח</span>
+      </div>
+    </div>
+    <div id="docPhotoEditorWrap" style="display:none;">
+      <div class="photo-toolbar">
+        <button class="photo-tool-btn active" id="docToolPenBtn" onclick="setDocPhotoTool('pen')">✏️ ציור</button>
+        <button class="photo-tool-btn" id="docToolTextBtn" onclick="setDocPhotoTool('text')">🔤 הערת טקסט</button>
+        <input type="color" id="docPhotoColor" value="#CC0000" title="צבע סימון">
+        <span class="photo-toolbar-sep"></span>
+        <button onclick="undoDocPhotoAnnotation()">↩ בטל אחרון</button>
+        <button onclick="clearDocPhotoAnnotations()">🧹 נקה סימונים</button>
+        <span class="photo-toolbar-sep"></span>
+        <label style="font-size:11px;color:var(--mid);white-space:nowrap;">גודל:</label>
+        <input type="range" id="docPhotoScale" min="30" max="200" value="100" step="5" oninput="scaleDocPhotoCanvas(this.value)" style="width:110px;">
+        <button class="photo-remove-btn" onclick="removeDocPhoto()">🗑 הסר תמונה</button>
+      </div>
+      <div class="photo-canvas-wrap">
+        <canvas id="docPhotoCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- Table -->
   <div class="table-wrap">
     <table class="items-table">
@@ -1144,7 +1163,6 @@
           <th style="width:40px;">יח׳</th>
           <th style="width:90px;">תאור יח׳</th>
           <th style="width:80px;">סה״כ</th>
-          <th style="width:38px;">📷</th>
         </tr>
       </thead>
       <tbody id="itemsBody"></tbody>
@@ -1206,40 +1224,9 @@
     </div>
   </div>
 
-  <!-- Hidden file input used for importing a photo into a specific item row -->
-  <input type="file" id="rowPhotoFileInput" accept="image/*" style="display:none" onchange="handleRowPhotoFileInput(event)">
-
   <div class="bottom-bar">
     <span>המחסנאי המקבל</span>
     <span><span class="accent">נא להחזיר עותק אחד חתום</span></span>
-  </div>
-</div>
-
-<!-- Row photo editor modal — opened by clicking an item row's camera icon, or by pasting an image while a row is active -->
-<div class="modal-overlay" id="rowPhotoModalOverlay" onclick="if(event.target===this)closeRowPhotoEditor()">
-  <div class="modal" style="width:min(820px,95vw);">
-    <div class="modal-header">
-      <div class="modal-title" id="rowPhotoModalTitle">תמונה — שורה 1</div>
-      <button class="modal-close" onclick="closeRowPhotoEditor()">×</button>
-    </div>
-    <div class="modal-body" id="rowPhotoModalBody">
-      <div class="photo-toolbar">
-        <button class="photo-tool-btn active" id="rowToolPenBtn" onclick="setRowPhotoTool('pen')">✏️ ציור</button>
-        <button class="photo-tool-btn" id="rowToolTextBtn" onclick="setRowPhotoTool('text')">🔤 הערת טקסט</button>
-        <input type="color" id="rowPhotoColor" value="#CC0000" title="צבע סימון">
-        <span class="photo-toolbar-sep"></span>
-        <button onclick="undoRowPhotoAnnotation()">↩ בטל אחרון</button>
-        <button onclick="clearRowPhotoAnnotations()">🧹 נקה סימונים</button>
-        <span class="photo-toolbar-sep"></span>
-        <label style="font-size:11px;color:var(--mid);white-space:nowrap;">גודל:</label>
-        <input type="range" id="rowPhotoScale" min="30" max="150" value="100" step="5" oninput="scaleRowPhotoCanvas(this.value)" style="width:110px;">
-        <button onclick="document.getElementById('rowPhotoFileInput').click()">🔄 החלף תמונה</button>
-        <button class="photo-remove-btn" onclick="removeRowPhoto()">🗑 הסר תמונה</button>
-      </div>
-      <div class="photo-canvas-wrap">
-        <canvas id="rowPhotoCanvas"></canvas>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1941,23 +1928,9 @@ for (let i = 1; i <= 15; i++) {
     <td><input type="text" data-row="${i}" data-col="qty" oninput="calcTotalQty()" style="font-weight:600;"></td>
     <td><input type="text" data-row="${i}" data-col="unit"></td>
     <td><input type="text" data-row="${i}" data-col="unitdesc"></td>
-    <td><input type="text" data-row="${i}" data-col="total"></td>
-    <td class="row-photo-cell">
-      <button type="button" class="row-photo-btn" id="rowPhotoBtn${i}" data-row="${i}" onclick="onRowPhotoBtnClick(${i})" title="הוסף / ערוך תמונה לשורה זו">
-        <span class="row-photo-icon">📷</span>
-      </button>
-    </td>`;
+    <td><input type="text" data-row="${i}" data-col="total"></td>`;
   tbody.appendChild(tr);
 }
-
-// Track which row the user last interacted with, so paste (Ctrl+V) knows where to attach the image
-let activeRowIndex = 1;
-tbody.addEventListener('focusin', (e) => {
-  const tr = e.target.closest('tr');
-  if (!tr) return;
-  const idx = [...tbody.children].indexOf(tr) + 1;
-  if (idx > 0) activeRowIndex = idx;
-});
 
 // ══════════════════════════════════════════
 //  CALC TOTAL QTY
@@ -2469,16 +2442,14 @@ function saveAndNext() {
   tbody.querySelectorAll('tr').forEach((row, i) => {
     const desc = row.querySelector('[data-col="desc"]');
     if (desc && desc.value.trim()) {
-      const rowNum = i + 1;
       items.push({
-        row: rowNum,
+        row: i + 1,
         cat: row.querySelector('[data-col="cat"]').value,
         desc: desc.value,
         qty: row.querySelector('[data-col="qty"]').value,
         unit: row.querySelector('[data-col="unit"]').value,
         unitdesc: row.querySelector('[data-col="unitdesc"]').value,
         total: row.querySelector('[data-col="total"]').value,
-        photo: renderRowPhotoDataURL(rowNum, 0.78),
       });
     }
   });
@@ -2517,6 +2488,7 @@ function saveAndNext() {
     receiptDateIso: document.getElementById('receiptDateNative').value,
     receiptDateHeb: isoToHeb(document.getElementById('receiptDateNative').value),
     receiptTime: document.getElementById('receiptTime').value,
+    photo: getDocPhotoDataURL(),
     sig0: sigData.sig0 || null,
     sig1: sigData.sig1 || null,
     sig2: sigData.sig2 || null,
@@ -2592,8 +2564,13 @@ function clearForm() {
   setRecipientMode('customer');
   setAllDatesToday();
   setNowDepTime();
-  // reset all row photo attachments silently (no confirm — this is a full-form reset)
-  resetAllRowPhotos();
+  // reset the document photo attachment silently (no confirm — this is a full-form reset)
+  docPhotoImage = null;
+  docPhotoAnnotations = [];
+  const dpWrap = document.getElementById('docPhotoEditorWrap');
+  if (dpWrap) dpWrap.style.display = 'none';
+  const dpFile = document.getElementById('docPhotoFileInput');
+  if (dpFile) dpFile.value = '';
   calcTotalQty();
   setTimeout(calcCompletion, 50);
 }
@@ -2951,10 +2928,7 @@ const DOC_PAGE_STYLES = `
   .sig-line { display:inline-block; width:130px; border-bottom:1px solid #aaa; height:38px; }
   .doc-photo-block { margin: 4px 0 10px; flex: none; }
   .doc-photo-block-label { font-size: 10px; font-weight: 800; color: #555; margin-bottom: 6px; }
-  .doc-photo-gallery { display: flex; gap: 10px; flex-wrap: wrap; }
-  .doc-photo-item { text-align: center; }
-  .doc-photo-item img { max-width: 220px; max-height: 180px; border: 1px solid #ddd; border-radius: 3px; display: block; }
-  .doc-photo-item-caption { font-size: 8.5px; color: #888; margin-top: 3px; }
+  .doc-photo-img { max-width: 100%; max-height: 480px; border: 1px solid #ddd; border-radius: 3px; display: block; margin: 0 auto; }
   @media print {
     body { margin:0; }
     .doc-page { border-bottom:none; }
@@ -3029,16 +3003,7 @@ function renderDocPage(doc) {
         <td class="tc" style="font-weight:800;">${doc.total||''}</td>
       </tr></tfoot>
     </table>
-    ${(() => {
-      const withPhotos = (doc.items || []).filter(it => it.photo);
-      if (!withPhotos.length) return '';
-      const cells = withPhotos.map(it => `
-        <div class="doc-photo-item">
-          <img src="${it.photo}" alt="תמונה שורה ${it.row}">
-          <div class="doc-photo-item-caption">שורה ${it.row}${it.desc ? ' — ' + it.desc : ''}</div>
-        </div>`).join('');
-      return `<div class="doc-photo-block"><div class="doc-photo-block-label">📷 תמונות מצורפות לפריטים</div><div class="doc-photo-gallery">${cells}</div></div>`;
-    })()}
+    ${doc.photo ? `<div class="doc-photo-block"><div class="doc-photo-block-label">📷 תמונת דף התעודה המקורי</div><img src="${doc.photo}" class="doc-photo-img"></div>` : ''}
     <div class="doc-footer-block">
       <div class="footer-row">
         <div>שם הנהג: ${doc.driver||'______________'} &nbsp;&nbsp; מס׳ רכב: ${doc.vehicle||'__________'} &nbsp;&nbsp; שעה: ${doc.depTime||'____'}</div>
@@ -3894,34 +3859,29 @@ function clearAllSignatures() {
 }
 
 // ══════════════════════════════════════════
-//  PER-ROW PHOTO ATTACHMENT + ANNOTATION (import / paste / draw / stretch)
+//  DOCUMENT PHOTO ATTACHMENT (photo of an existing paper page — one per document)
 // ══════════════════════════════════════════
-let rowPhotos = {};             // { [rowIndex]: { img: HTMLImageElement, annotations: [...], scalePct: 100 } }
-let currentEditingRow = null;   // which row's modal is currently open
-let rowPhotoTool = 'pen';
-let rowPhotoDrawing = false;
-let rowPhotoCurrentStroke = null;
-const ROW_PHOTO_BASE_WIDTH = 720;   // canvas width in px at 100% scale
-const ROW_PHOTO_MAX_HEIGHT = 700;   // safety cap so a very tall image can't blow up the editor
+let docPhotoImage = null;        // the loaded base image (HTMLImageElement, already grayscale)
+let docPhotoAnnotations = [];    // [{type:'stroke', color, w, pts:[{x,y}...]}, {type:'text', color, x, y, text}] — x/y/pts are 0..1 normalized
+let docPhotoTool = 'pen';
+let docPhotoDrawing = false;
+let docPhotoCurrentStroke = null;
+const DOC_PHOTO_BASE_WIDTH = 900;    // canvas width in px at 100% scale — generous, since this photo often IS the item list and needs to stay legible
+const DOC_PHOTO_MAX_HEIGHT = 1400;   // safety cap for tall portrait photos of a full page
 
-// ── Row camera-icon click: import a new photo, or open the editor if one already exists ──
-function onRowPhotoBtnClick(rowIndex) {
-  activeRowIndex = rowIndex;
-  if (rowPhotos[rowIndex] && rowPhotos[rowIndex].img) {
-    openRowPhotoEditor(rowIndex);
-  } else {
-    pendingImportRow = rowIndex;
-    document.getElementById('rowPhotoFileInput').click();
-  }
+function setDocPhotoTool(tool) {
+  docPhotoTool = tool;
+  document.getElementById('docToolPenBtn').classList.toggle('active', tool === 'pen');
+  document.getElementById('docToolTextBtn').classList.toggle('active', tool === 'text');
+  const canvas = document.getElementById('docPhotoCanvas');
+  if (canvas) canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
 }
 
-let pendingImportRow = null;
-function handleRowPhotoFileInput(e) {
+function handleDocPhotoFileInput(e) {
   const file = e.target.files && e.target.files[0];
-  const rowIndex = pendingImportRow || currentEditingRow || activeRowIndex || 1;
   e.target.value = '';
   if (!file) return;
-  readImageFileForRow(file, rowIndex);
+  readDocPhotoFile(file);
 }
 
 // Global paste handler — only intercepts when the clipboard actually contains an image,
@@ -3931,119 +3891,85 @@ document.addEventListener('paste', (e) => {
   for (const item of items) {
     if (item.type && item.type.startsWith('image/')) {
       const file = item.getAsFile();
-      if (file) {
-        e.preventDefault();
-        const rowIndex = currentEditingRow || activeRowIndex || 1;
-        readImageFileForRow(file, rowIndex);
-      }
+      if (file) { e.preventDefault(); readDocPhotoFile(file); }
       return;
     }
   }
 });
 
-function readImageFileForRow(file, rowIndex) {
+function readDocPhotoFile(file) {
   const reader = new FileReader();
-  reader.onload = (ev) => loadRowPhotoFromDataURL(rowIndex, ev.target.result);
+  reader.onload = (ev) => loadDocPhotoFromDataURL(ev.target.result);
   reader.readAsDataURL(file);
 }
 
-function loadRowPhotoFromDataURL(rowIndex, dataUrl) {
-  const img = new Image();
-  img.onload = () => {
-    rowPhotos[rowIndex] = { img, annotations: [], scalePct: 100 };
-    refreshRowPhotoThumb(rowIndex);
-    showToast(`✓ תמונה נטענה לשורה ${rowIndex} — אפשר לצייר, להוסיף הערות ולשנות גודל`, 'green');
-    openRowPhotoEditor(rowIndex);
-  };
-  img.onerror = () => showToast('⚠ לא ניתן לטעון את הקובץ כתמונה', 'warn');
-  img.src = dataUrl;
-}
-
-// ── Thumbnail shown on the row's camera button ──
-function refreshRowPhotoThumb(rowIndex) {
-  const btn = document.getElementById('rowPhotoBtn' + rowIndex);
-  if (!btn) return;
-  const rp = rowPhotos[rowIndex];
-  if (rp && rp.img) {
-    const thumbUrl = renderRowPhotoDataURL(rowIndex, 0.6);
-    btn.innerHTML = `<img src="${thumbUrl}" alt="תמונה שורה ${rowIndex}">`;
-    btn.classList.add('has-photo');
-  } else {
-    btn.innerHTML = `<span class="row-photo-icon">📷</span>`;
-    btn.classList.remove('has-photo');
+// Photos of existing paper documents are always black & white here, and often very high
+// resolution (heavy files) since they come straight off a phone camera. Converting to
+// grayscale up front — before it's ever stored or synced — cuts the saved size dramatically
+// without losing any readability of the original page.
+function toGrayscaleDataURL(img, maxWidth) {
+  const ratio = img.naturalHeight / img.naturalWidth;
+  let w = Math.min(maxWidth, img.naturalWidth);
+  let h = w * ratio;
+  const c = document.createElement('canvas');
+  c.width = Math.round(w); c.height = Math.round(h);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const frame = ctx.getImageData(0, 0, c.width, c.height);
+  const d = frame.data;
+  for (let i = 0; i < d.length; i += 4) {
+    // luminance-weighted grayscale (matches how the eye perceives brightness)
+    const gray = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
+    d[i] = d[i+1] = d[i+2] = gray;
   }
+  ctx.putImageData(frame, 0, 0);
+  return c.toDataURL('image/png');
 }
 
-// ── Flatten the row's image + annotations into a single compressed JPEG (used for thumbnail, save, and print) ──
-function renderRowPhotoDataURL(rowIndex, quality) {
-  const rp = rowPhotos[rowIndex];
-  if (!rp || !rp.img) return null;
-  const ratio = rp.img.naturalHeight / rp.img.naturalWidth;
-  let w = ROW_PHOTO_BASE_WIDTH * (rp.scalePct / 100);
+function loadDocPhotoFromDataURL(dataUrl) {
+  const rawImg = new Image();
+  rawImg.onload = () => {
+    // pre-scale + desaturate once at load time (keeps the working image small & fast to redraw)
+    const grayUrl = toGrayscaleDataURL(rawImg, DOC_PHOTO_BASE_WIDTH * 1.5);
+    const img = new Image();
+    img.onload = () => {
+      docPhotoImage = img;
+      docPhotoAnnotations = [];
+      document.getElementById('docPhotoEditorWrap').style.display = 'block';
+      document.getElementById('docPhotoScale').value = 100;
+      sizeDocPhotoCanvas(100);
+      showToast('✓ תמונה נטענה (הומרה לשחור-לבן לחיסכון בנפח) — אפשר לצייר, להוסיף הערות ולשנות גודל', 'green');
+    };
+    img.src = grayUrl;
+  };
+  rawImg.onerror = () => showToast('⚠ לא ניתן לטעון את הקובץ כתמונה', 'warn');
+  rawImg.src = dataUrl;
+}
+
+function sizeDocPhotoCanvas(pct) {
+  if (!docPhotoImage) return;
+  const canvas = document.getElementById('docPhotoCanvas');
+  const ratio = docPhotoImage.naturalHeight / docPhotoImage.naturalWidth;
+  let w = DOC_PHOTO_BASE_WIDTH * (pct / 100);
   let h = w * ratio;
-  if (h > ROW_PHOTO_MAX_HEIGHT) { h = ROW_PHOTO_MAX_HEIGHT; w = h / ratio; }
-  const off = document.createElement('canvas');
-  off.width = Math.max(1, Math.round(w));
-  off.height = Math.max(1, Math.round(h));
-  const ctx = off.getContext('2d');
-  ctx.drawImage(rp.img, 0, 0, off.width, off.height);
-  (rp.annotations || []).forEach(a => drawAnnotation(ctx, off, a));
-  return off.toDataURL('image/jpeg', quality == null ? 0.78 : quality);
-}
-
-// ── Modal editor ──
-function openRowPhotoEditor(rowIndex) {
-  if (!rowPhotos[rowIndex] || !rowPhotos[rowIndex].img) return;
-  currentEditingRow = rowIndex;
-  document.getElementById('rowPhotoModalTitle').textContent = `תמונה — שורה ${rowIndex}`;
-  document.getElementById('rowPhotoScale').value = rowPhotos[rowIndex].scalePct || 100;
-  setRowPhotoTool('pen');
-  sizeRowPhotoCanvas(rowPhotos[rowIndex].scalePct || 100);
-  document.getElementById('rowPhotoModalOverlay').classList.add('open');
-}
-
-function closeRowPhotoEditor() {
-  if (currentEditingRow) refreshRowPhotoThumb(currentEditingRow);
-  document.getElementById('rowPhotoModalOverlay').classList.remove('open');
-  currentEditingRow = null;
-}
-
-function setRowPhotoTool(tool) {
-  rowPhotoTool = tool;
-  document.getElementById('rowToolPenBtn').classList.toggle('active', tool === 'pen');
-  document.getElementById('rowToolTextBtn').classList.toggle('active', tool === 'text');
-  const canvas = document.getElementById('rowPhotoCanvas');
-  if (canvas) canvas.style.cursor = tool === 'text' ? 'text' : 'crosshair';
-}
-
-function sizeRowPhotoCanvas(pct) {
-  const rp = rowPhotos[currentEditingRow];
-  if (!rp) return;
-  rp.scalePct = Number(pct);
-  const canvas = document.getElementById('rowPhotoCanvas');
-  const ratio = rp.img.naturalHeight / rp.img.naturalWidth;
-  let w = ROW_PHOTO_BASE_WIDTH * (rp.scalePct / 100);
-  let h = w * ratio;
-  if (h > ROW_PHOTO_MAX_HEIGHT) { h = ROW_PHOTO_MAX_HEIGHT; w = h / ratio; }
+  if (h > DOC_PHOTO_MAX_HEIGHT) { h = DOC_PHOTO_MAX_HEIGHT; w = h / ratio; }
   canvas.width = Math.round(w);
   canvas.height = Math.round(h);
-  drawRowPhotoCanvas();
+  drawDocPhotoCanvas();
 }
 
-function scaleRowPhotoCanvas(pct) { sizeRowPhotoCanvas(pct); }
+function scaleDocPhotoCanvas(pct) { sizeDocPhotoCanvas(pct); }
 
-function drawRowPhotoCanvas() {
-  const rp = rowPhotos[currentEditingRow];
-  const canvas = document.getElementById('rowPhotoCanvas');
-  if (!rp || !canvas) return;
+function drawDocPhotoCanvas() {
+  const canvas = document.getElementById('docPhotoCanvas');
+  if (!canvas || !docPhotoImage) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(rp.img, 0, 0, canvas.width, canvas.height);
-  rp.annotations.forEach(a => drawAnnotation(ctx, canvas, a));
+  ctx.drawImage(docPhotoImage, 0, 0, canvas.width, canvas.height);
+  docPhotoAnnotations.forEach(a => drawAnnotation(ctx, canvas, a));
 }
 
-// Shared low-level renderer for one annotation — used both by the live editor canvas
-// and by the offscreen flattening used for thumbnails / saved documents / print.
+// Shared low-level renderer for one annotation (stroke or text note)
 function drawAnnotation(ctx, canvas, a) {
   if (a.type === 'stroke') {
     if (a.pts.length < 2) return;
@@ -4056,7 +3982,7 @@ function drawAnnotation(ctx, canvas, a) {
     ctx.stroke();
   } else if (a.type === 'text') {
     const x = a.x * canvas.width, y = a.y * canvas.height;
-    ctx.font = '700 ' + Math.max(14, canvas.width * 0.032) + 'px Heebo, sans-serif';
+    ctx.font = '700 ' + Math.max(14, canvas.width * 0.022) + 'px Heebo, sans-serif';
     ctx.textAlign = 'right';
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
@@ -4066,82 +3992,80 @@ function drawAnnotation(ctx, canvas, a) {
   }
 }
 
-function rowPhotoCanvasPoint(e) {
-  const canvas = document.getElementById('rowPhotoCanvas');
+function docPhotoCanvasPoint(e) {
+  const canvas = document.getElementById('docPhotoCanvas');
   const rect = canvas.getBoundingClientRect();
   const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
   const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
   return { x: cx / rect.width, y: cy / rect.height };
 }
 
-function rowPhotoPointerDown(e) {
-  const rp = rowPhotos[currentEditingRow];
-  if (!rp) return;
+function docPhotoPointerDown(e) {
+  if (!docPhotoImage) return;
   e.preventDefault();
-  const pt = rowPhotoCanvasPoint(e);
-  const color = document.getElementById('rowPhotoColor').value;
-  if (rowPhotoTool === 'text') {
+  const pt = docPhotoCanvasPoint(e);
+  const color = document.getElementById('docPhotoColor').value;
+  if (docPhotoTool === 'text') {
     const text = prompt('טקסט ההערה:');
     if (text && text.trim()) {
-      rp.annotations.push({ type: 'text', color, x: pt.x, y: pt.y, text: text.trim() });
-      drawRowPhotoCanvas();
+      docPhotoAnnotations.push({ type: 'text', color, x: pt.x, y: pt.y, text: text.trim() });
+      drawDocPhotoCanvas();
     }
     return;
   }
-  rowPhotoDrawing = true;
-  rowPhotoCurrentStroke = { type: 'stroke', color, w: 3, pts: [pt] };
-  rp.annotations.push(rowPhotoCurrentStroke);
+  docPhotoDrawing = true;
+  docPhotoCurrentStroke = { type: 'stroke', color, w: 3, pts: [pt] };
+  docPhotoAnnotations.push(docPhotoCurrentStroke);
 }
 
-function rowPhotoPointerMove(e) {
-  if (!rowPhotoDrawing || !rowPhotoCurrentStroke) return;
+function docPhotoPointerMove(e) {
+  if (!docPhotoDrawing || !docPhotoCurrentStroke) return;
   e.preventDefault();
-  rowPhotoCurrentStroke.pts.push(rowPhotoCanvasPoint(e));
-  drawRowPhotoCanvas();
+  docPhotoCurrentStroke.pts.push(docPhotoCanvasPoint(e));
+  drawDocPhotoCanvas();
 }
 
-function rowPhotoPointerUp() {
-  rowPhotoDrawing = false;
-  rowPhotoCurrentStroke = null;
+function docPhotoPointerUp() {
+  docPhotoDrawing = false;
+  docPhotoCurrentStroke = null;
 }
 
-function undoRowPhotoAnnotation() {
-  const rp = rowPhotos[currentEditingRow];
-  if (!rp) return;
-  rp.annotations.pop();
-  drawRowPhotoCanvas();
+function undoDocPhotoAnnotation() {
+  docPhotoAnnotations.pop();
+  drawDocPhotoCanvas();
 }
 
-function clearRowPhotoAnnotations() {
-  const rp = rowPhotos[currentEditingRow];
-  if (!rp) return;
-  rp.annotations = [];
-  drawRowPhotoCanvas();
+function clearDocPhotoAnnotations() {
+  docPhotoAnnotations = [];
+  drawDocPhotoCanvas();
 }
 
-function removeRowPhoto() {
-  if (!confirm('להסיר את התמונה משורה זו?')) return;
-  const rowIndex = currentEditingRow;
-  delete rowPhotos[rowIndex];
-  closeRowPhotoEditor();
-  refreshRowPhotoThumb(rowIndex);
+function removeDocPhoto() {
+  if (docPhotoImage && !confirm('להסיר את תמונת התעודה?')) return;
+  docPhotoImage = null;
+  docPhotoAnnotations = [];
+  document.getElementById('docPhotoEditorWrap').style.display = 'none';
+  document.getElementById('docPhotoFileInput').value = '';
 }
 
-// Reset every row's photo (used when the whole form is cleared)
-function resetAllRowPhotos() {
-  rowPhotos = {};
-  for (let i = 1; i <= 15; i++) refreshRowPhotoThumb(i);
+// Flat, compressed export (grayscale image + annotations baked together) — this is what gets saved with the document.
+// Grayscale JPEGs compress far better than color ones, which matters a lot for full-page photos.
+function getDocPhotoDataURL() {
+  const canvas = document.getElementById('docPhotoCanvas');
+  if (!docPhotoImage || !canvas) return null;
+  return canvas.toDataURL('image/jpeg', 0.72);
 }
 
-(function wireRowPhotoCanvasEvents() {
-  const canvas = document.getElementById('rowPhotoCanvas');
+(function wireDocPhotoCanvasEvents() {
+  const canvas = document.getElementById('docPhotoCanvas');
   if (!canvas) return;
-  canvas.addEventListener('mousedown', rowPhotoPointerDown);
-  canvas.addEventListener('mousemove', rowPhotoPointerMove);
-  window.addEventListener('mouseup', rowPhotoPointerUp);
-  canvas.addEventListener('touchstart', rowPhotoPointerDown, { passive: false });
-  canvas.addEventListener('touchmove', rowPhotoPointerMove, { passive: false });
-  canvas.addEventListener('touchend', rowPhotoPointerUp);
+  canvas.addEventListener('mousedown', docPhotoPointerDown);
+  canvas.addEventListener('mousemove', docPhotoPointerMove);
+  window.addEventListener('mouseup', docPhotoPointerUp);
+  canvas.addEventListener('touchstart', docPhotoPointerDown, { passive: false });
+  canvas.addEventListener('touchmove', docPhotoPointerMove, { passive: false });
+  canvas.addEventListener('touchend', docPhotoPointerUp);
 })();</script>
 </body>
 </html>
+

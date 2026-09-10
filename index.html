@@ -2996,13 +2996,16 @@ const DOC_PAGE_STYLES = `
   .doc-page:last-child { page-break-after:auto; border-bottom:none; }
   .top-stripe { background:#CC0000; height:5px; width:100%; margin-bottom:12px; flex:none; }
   .hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #ddd; flex:none; }
-  .company { font-size:9px; color:#555; line-height:1.7; border-right:3px solid #CC0000; padding-right:8px; }
+  .company { font-size:9px; color:#555; line-height:1.7; border-left:3px solid #CC0000; padding-left:8px; }
   .company strong { font-size:10px; color:#111; font-weight:800; display:block; }
   .logo-wrap { text-align:right; }
   .title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex:none; }
   .doc-title-txt { font-size:20px; font-weight:800; }
   .doc-title-txt span { color:#CC0000; }
   .doc-num-big { background:#1a1a1a; color:white; font-size:18px; font-weight:800; letter-spacing:3px; padding:4px 16px; border-radius:2px; }
+  .doc-num-qr-group { display:flex; align-items:center; gap:10px; }
+  .doc-qr { width:46px; height:46px; flex:none; }
+  .doc-qr img, .doc-qr canvas { width:100% !important; height:100% !important; display:block; }
   .meta-row { display:flex; gap:16px; flex-wrap:wrap; font-size:10px; background:#f8f8f6; padding:6px 10px; border:1px solid #e0e0dc; margin-bottom:8px; flex:none; }
   .meta-item { display:flex; gap:4px; }
   .ml { font-weight:700; color:#555; }
@@ -3074,16 +3077,19 @@ function renderDocPage(doc) {
   <div class="doc-page">
     <div class="top-stripe"></div>
     <div class="hdr">
+      <div class="logo-wrap"><img src="${AFCON_LOGO}" alt="אפקון" style="height:64px;width:auto;display:block;margin-inline-end:auto;"></div>
       <div class="company">
         <strong>עוסק מורשה מס׳ 557652914</strong><br>
         סמטת התבור 4, אזור תעשיה סגולה, פתח תקוה 4969104<br>
         טל׳ 073-2001431 | פקס 03-9216492
       </div>
-      <div class="logo-wrap"><img src="${AFCON_LOGO}" alt="אפקון" style="height:64px;width:auto;display:block;margin-inline-start:auto;"></div>
     </div>
     <div class="title-row">
       <div class="doc-title-txt">תעודת משלוח <span>מס׳</span></div>
-      <div class="doc-num-big">${doc.num}</div>
+      <div class="doc-num-qr-group">
+        <div class="doc-num-big">${doc.num}</div>
+        <div class="doc-qr" id="qr-${doc.num}"></div>
+      </div>
     </div>
     ${doc.cancelled ? '<div style="text-align:center;color:#CC0000;font-weight:800;font-size:16px;letter-spacing:4px;border:2px solid #CC0000;border-radius:4px;padding:4px;margin-bottom:8px;">תעודה מבוטלת</div>' : ''}
     <div class="meta-row">
@@ -3146,6 +3152,20 @@ function renderDocPage(doc) {
   </div>`;
 }
 
+// ── Generates the QR codes for a set of documents (called from inside the generated print/preview page) ──
+function buildQRScript(docs) {
+  const nums = docs.map(d => JSON.stringify(String(d.num)));
+  return `<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+<script>
+  [${nums.join(',')}].forEach(function(num) {
+    var el = document.getElementById('qr-' + num);
+    if (el && window.QRCode) {
+      new QRCode(el, { text: num, width: 46, height: 46, colorDark: '#1a1a1a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    }
+  });
+<\/script>`;
+}
+
 function buildPrintHTML(docs) {
   const docPages = docs.map(renderDocPage).join('');
   return `<!DOCTYPE html>
@@ -3162,7 +3182,7 @@ function buildPrintHTML(docs) {
   <button class="pc-close" onclick="window.close()">✕ סגור וחזור</button>
   <span class="pc-hint">לשונית זו נועדה להדפסה בלבד</span>
 </div>
-${docPages}</body>
+${docPages}${buildQRScript(docs)}</body>
 </html>`;
 }
 
@@ -3178,7 +3198,7 @@ function buildSingleDocPreviewHTML(doc) {
   .doc-page { box-shadow:0 2px 14px rgba(0,0,0,0.12); border-bottom:none !important; }
 </style>
 </head>
-<body>${renderDocPage(doc)}</body>
+<body>${renderDocPage(doc)}${buildQRScript([doc])}</body>
 </html>`;
 }
 
